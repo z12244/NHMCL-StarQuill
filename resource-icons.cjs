@@ -1,0 +1,5 @@
+const allowed=new Set(['cdn.modrinth.com','media.forgecdn.net','mediafilez.forgecdn.net','edge.forgecdn.net']);
+function iconURL(value){try{const u=new URL(value);return u.protocol==='https:'&&!u.username&&!u.password&&!u.port&&allowed.has(u.hostname)?u.href:null;}catch{return null;}}
+function createIconLoader(fetcher,decode){const cache=new Map();let running=0;const queue=[];
+ async function load(url){const valid=iconURL(url);if(!valid)return null;if(cache.has(valid))return cache.get(valid);const job=(async()=>{if(running>=4)await new Promise(resolve=>queue.push(resolve));running++;try{const r=await fetcher(valid,{redirect:'error',signal:AbortSignal.timeout(12000)});if(!r.ok)return null;let size=0;const chunks=[];for await(const chunk of r.body){size+=chunk.length;if(size>2*1024*1024)return null;chunks.push(Buffer.from(chunk));}return decode(Buffer.concat(chunks));}catch{return null;}finally{running--;queue.shift()?.();}})();cache.set(valid,job);while(cache.size>256)cache.delete(cache.keys().next().value);const result=await job;if(!result)cache.delete(valid);return result;}return load;}
+module.exports={iconURL,createIconLoader};

@@ -157,3 +157,10 @@ ipcMain.handle('launch',async()=>{requireIdle();if(accountError)throw Error(acco
     });return true;
   }catch(e){stopSkin();busy=false;child=null;controller=null;sessionLogs=null;status('error',e.message);log(e.message);local().then(items=>send('instances-changed',items)).catch(()=>{});throw e;}
 });
+
+const loadResourceIcon=require('./resource-icons.cjs').createIconLoader((...args)=>fetcher(...args),buffer=>{const img=require('electron').nativeImage.createFromBuffer(buffer);if(img.isEmpty())return null;const size=img.getSize();if(size.width>4096||size.height>4096)return null;return img.resize({width:128,height:128,quality:'best'}).toDataURL();});
+ipcMain.handle('resource-icon',(_,url)=>loadResourceIcon(url));
+
+const appearanceJobs=new Map();async function accountAppearance(id){const a=accounts.accounts.find(a=>a.id===id);if(!a)throw Error('账号已被移除');const key=id+JSON.stringify(a.skin||null);if(!appearanceJobs.has(key))appearanceJobs.set(key,require('./appearance.cjs').appearance(settings.root,a,fetcher).finally(()=>appearanceJobs.delete(key)));return appearanceJobs.get(key);}
+ipcMain.handle('account-appearance',(_,id)=>accountAppearance(id));
+ipcMain.handle('account-appearance-export',async(_,id)=>{const a=accounts.accounts.find(a=>a.id===id);if(!a)throw Error('账号已被移除');const data=await accountAppearance(id);const result=await dialog.showSaveDialog(win,{title:'导出皮肤',defaultPath:a.name.replace(/[^a-zA-Z0-9_-]/g,'_')+'-skin.png',filters:[{name:'PNG 图片',extensions:['png']}]});if(result.canceled||!result.filePath)return false;await fs.writeFile(result.filePath,Buffer.from(data.skin.split(',')[1],'base64'));return true;});

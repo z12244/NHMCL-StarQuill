@@ -3,8 +3,8 @@ const {pool}=require('./downloads.cjs');
 const MR='https://api.modrinth.com/v2',CF='https://api.curseforge.com/v1';
 const CLASS={mod:6,modpack:4471,resourcepack:12,shader:6552},LOADERS={forge:1,fabric:4,neoforge:6};
 function ident(id){if(typeof id!=='string'&&typeof id!=='number'||!/^[-a-zA-Z0-9_+.]+$/.test(String(id)))throw Error('资源编号无效');return encodeURIComponent(id);}
-function mrProject(p){return {source:'modrinth',id:p.id||p.project_id,slug:p.slug,title:p.title,kind:p.project_type,description:p.description||'',url:`https://modrinth.com/${p.project_type}/${p.slug||p.id}`};}
-function cfProject(p){const kind=Object.keys(CLASS).find(k=>CLASS[k]===p.classId);if(!kind||p.gameId!==432)throw Error('仅支持 Minecraft Java 资源');return {source:'curseforge',id:String(p.id),slug:p.slug,title:p.name,kind,description:p.summary||'',url:p.links?.websiteUrl||`https://www.curseforge.com/minecraft/mc-mods/${p.slug}`,distribution:p.allowModDistribution};}
+function mrProject(p){return {source:'modrinth',id:p.id||p.project_id,slug:p.slug,title:p.title,kind:p.project_type,icon:require('./resource-icons.cjs').iconURL(p.icon_url),description:p.description||'',url:`https://modrinth.com/${p.project_type}/${p.slug||p.id}`};}
+function cfProject(p){const kind=Object.keys(CLASS).find(k=>CLASS[k]===p.classId);if(!kind||p.gameId!==432)throw Error('仅支持 Minecraft Java 资源');return {source:'curseforge',id:String(p.id),slug:p.slug,title:p.name,kind,icon:require('./resource-icons.cjs').iconURL(p.logo?.thumbnailUrl||p.logo?.url),description:p.summary||'',url:p.links?.websiteUrl||`https://www.curseforge.com/minecraft/mc-mods/${p.slug}`,distribution:p.allowModDistribution};}
 class Resources{
  constructor({fetcher=fetch,key='',names,onStatus=()=>{}}={}){Object.assign(this,{fetcher,key,names,onStatus});}
  async mr(route,signal){return json(this.fetcher,MR+route,signal);}
