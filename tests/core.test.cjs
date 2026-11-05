@@ -1,0 +1,6 @@
+const {test}=require('node:test'),assert=require('node:assert/strict');
+const {validate,javaMajor,redact,runtimePath}=require('../core.cjs');
+test('rejects instance path traversal and invalid launch settings',()=>{for(const version of ['..','.','../a','C:\\temp','a/b'])assert.throws(()=>validate({version,name:'Player',memory:4}));assert.throws(()=>validate({version:'1.21.1',name:'x',memory:4}));assert.throws(()=>validate({version:'1.21.1',name:'Player',memory:0}));assert.throws(()=>validate({version:'1.21.1',name:'Player',memory:2.5}));assert.equal(validate({version:'1.21.1',name:'Player_01',memory:4}).memory,4);});
+test('reads old and modern Java version output',()=>{assert.equal(javaMajor('java version "1.8.0_432"'),8);assert.equal(javaMajor('openjdk version "21.0.13" 2026-10-20 LTS'),21);assert.equal(javaMajor('bad'),null);});
+test('redacts access tokens from diagnostic logs',()=>{assert.equal(redact('--accessToken SECRET --uuid abc'),'--accessToken [redacted] --uuid abc');assert.equal(redact('Authorization: Bearer SECRET'),'Authorization: Bearer [redacted]');});
+test('uses packaged runtime instead of working directory',()=>{assert.ok(runtimePath('resources','source',true).startsWith('resources'));assert.ok(runtimePath('resources','source',false).startsWith('source'));});

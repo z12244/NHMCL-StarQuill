@@ -1,0 +1,66 @@
+{
+  "name": "nhmcl-starquill",
+  "version": "0.8.6-beta",
+  "private": true,
+  "description": "该启动器由 StarQuill_z12244 发起的 Minecraft 启动器项目。经由南湖模作社参与维护与发行。",
+  "author": "StarQuill_z12244 / 南湖模作社",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win portable --x64",
+    "test": "node --test tests/*.test.cjs"
+  },
+  "dependencies": {
+    "@xmcl/installer": "6.3.7",
+    "adm-zip": "0.5.16",
+    "node-html-parser": "6.1.13",
+    "yazl": "2.5.1",
+    "yauzl": "2.10.0"
+  },
+  "devDependencies": {
+    "electron": "45.2.2",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "cn.starQuill.nhmcl",
+    "productName": "NHMCL-StarQuill",
+    "artifactName": "NHMCL-StarQuill-beta-0.8.6-win-x64.${ext}",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "*.cjs",
+      "*.html",
+      "*.css",
+      "assets/**/*",
+      "THIRD-PARTY-NOTICES.txt"
+    ],
+    "extraResources": [
+      {
+        "from": "runtime",
+        "to": "runtime"
+      },
+      {
+        "from": "tools",
+        "to": "tools"
+      }
+    ],
+    "win": {
+      "target": "portable",
+      "icon": "assets/icon.ico",
+      "signExecutable": false
+    },
+    "portable": {
+      "requestExecutionLevel": "user"
+    }
+  },
+  "productName": "NHMCL-StarQuill",
+  "overrides": {
+    "@xmcl/unzip": "2.1.2"
+  },
+  "displayVersion": "beta-0.8.6",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/z12244/NHMCL-StarQuill.git"
+  }
+}

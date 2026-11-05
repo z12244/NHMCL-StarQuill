@@ -1,0 +1,177 @@
+[
+  {
+    "version": "beta-0.2.0",
+    "asset": "NHMCL-StarQuill-beta-0.2.0-win-x64.exe",
+    "sha256": "d24c836a1802201ccc6d013b7475c49b7b48d9edd47e871d87ae36de0a064ea1",
+    "kind": "historical-original",
+    "originalVersion": "0.2.0"
+  },
+  {
+    "version": "beta-0.2.0",
+    "asset": "NHMCL-StarQuill-beta-0.2.0-source.zip",
+    "sha256": "7a8b1ded82e830a23b065f2436767b7596e329039bb283052bd89808f798bf23",
+    "kind": "historical-original",
+    "originalVersion": "0.2.0"
+  },
+  {
+    "version": "beta-0.2.0",
+    "asset": "NHMCL-StarQuill-beta-0.2.0-alternate-win-x64.exe",
+    "sha256": "d06de9a8bfd03e48834da47eaedcb7235c349caa9149c4078576ed2db052c9d9",
+    "kind": "historical-original",
+    "originalVersion": "0.2.0"
+  },
+  {
+    "version": "beta-0.3.0",
+    "asset": "NHMCL-StarQuill-beta-0.3.0-win-x64.exe",
+    "sha256": "8cdd152f0ca8e314219268dd10931479f7b2eb2c18513668ad559922525d0741",
+    "kind": "historical-original",
+    "originalVersion": "0.3.0"
+  },
+  {
+    "version": "beta-0.3.0",
+    "asset": "NHMCL-StarQuill-beta-0.3.0-source.zip",
+    "sha256": "8bf880f3907d68550ca5996317b6925af999ff3ceffe776160795085be13d50f",
+    "kind": "historical-original",
+    "originalVersion": "0.3.0"
+  },
+  {
+    "version": "beta-0.4.0",
+    "asset": "NHMCL-StarQuill-beta-0.4.0-win-x64.exe",
+    "sha256": "83d6e001e778f92d8490e91ffdfe2e8525883300fc5bbc0e9b8d2500728a2ca0",
+    "kind": "historical-original",
+    "originalVersion": "0.4.0"
+  },
+  {
+    "version": "beta-0.4.0",
+    "asset": "NHMCL-StarQuill-beta-0.4.0-source.zip",
+    "sha256": "0fa456866f6553e02004023e7851d656ec25e83a3cdb3cc4eaa1a4308c876d79",
+    "kind": "historical-original",
+    "originalVersion": "0.4.0"
+  },
+  {
+    "version": "beta-0.5.0",
+    "asset": "NHMCL-StarQuill-beta-0.5.0-win-x64.exe",
+    "sha256": "d394e3c65dde37f0115737d1794f5c6d522254575ee0af292f57dafbceb1b36c",
+    "kind": "historical-original",
+    "originalVersion": "0.5.0"
+  },
+  {
+    "version": "beta-0.5.0",
+    "asset": "NHMCL-StarQuill-beta-0.5.0-source.zip",
+    "sha256": "63c723014577dee405a3e64f4887c8e08c8239ea0c49d896ba01f5e2b44deaae",
+    "kind": "historical-original",
+    "originalVersion": "0.5.0"
+  },
+  {
+    "version": "beta-0.6.0",
+    "asset": "NHMCL-StarQuill-beta-0.6.0-win-x64.exe",
+    "sha256": "9cf6be34397509909260a5706cd65e32ec92f7df7fc545ffe60063b9788b78a3",
+    "kind": "historical-original",
+    "originalVersion": "0.6.0"
+  },
+  {
+    "version": "beta-0.6.0",
+    "asset": "NHMCL-StarQuill-beta-0.6.0-source.zip",
+    "sha256": "2dc1d37f392e6696af5671ee57ae3cfae3ac0b18b947b7e3ebe73f87807afbf0",
+    "kind": "historical-original",
+    "originalVersion": "0.6.0"
+  },
+  {
+    "version": "beta-0.7.0",
+    "asset": "NHMCL-StarQuill-beta-0.7.0-win-x64.exe",
+    "sha256": "ef51f66cc120af582f86882d5ac89eec43e4ae2d064ab4b37e087fa5a296feed",
+    "kind": "historical-original",
+    "originalVersion": "0.7.0"
+  },
+  {
+    "version": "beta-0.7.0",
+    "asset": "NHMCL-StarQuill-beta-0.7.0-source.zip",
+    "sha256": "4038486e02760b906e7944214e9b5f136fd0118710497500ed915c4942d062c9",
+    "kind": "historical-original",
+    "originalVersion": "0.7.0"
+  },
+  {
+    "version": "beta-0.8.0",
+    "asset": "NHMCL-StarQuill-beta-0.8.0-win-x64.exe",
+    "sha256": "bf2aefbb3fc13faab18b591c84def29b8892db92327f0e2619cb9a728d56e650",
+    "kind": "historical-original",
+    "originalVersion": "0.8.0"
+  },
+  {
+    "version": "beta-0.8.0",
+    "asset": "NHMCL-StarQuill-beta-0.8.0-source.zip",
+    "sha256": "6bd2739c52a3c67c2d371407e6a079ecc6a3f6943f7687e4a4de38d7eced5e3a",
+    "kind": "historical-original",
+    "originalVersion": "0.8.0"
+  },
+  {
+    "version": "beta-0.8.1",
+    "asset": "NHMCL-StarQuill-beta-0.8.1-win-x64.exe",
+    "sha256": "13bf801fa7f7e83a2d277f9a940a8f950dab914976b99ddff30854884e704930",
+    "kind": "historical-original",
+    "originalVersion": "0.8.1"
+  },
+  {
+    "version": "beta-0.8.1",
+    "asset": "NHMCL-StarQuill-beta-0.8.1-source.zip",
+    "sha256": "7c700d0a84193c1d0e17ae07c946d93f0532c3a9981891ba586f0b1acf6ce021",
+    "kind": "historical-original",
+    "originalVersion": "0.8.1"
+  },
+  {
+    "version": "beta-0.8.2",
+    "asset": "NHMCL-StarQuill-beta-0.8.2-win-x64.exe",
+    "sha256": "2443e31b4203807e3b0bc91a367bedfff9cd0b480b5bc317369705c134d9b172",
+    "kind": "historical-original",
+    "originalVersion": "0.8.2"
+  },
+  {
+    "version": "beta-0.8.2",
+    "asset": "NHMCL-StarQuill-beta-0.8.2-source.zip",
+    "sha256": "5250eb9aad10029db74176e27419e5bd63d9b3160692680bc51eac39fe5ff1a6",
+    "kind": "historical-original",
+    "originalVersion": "0.8.2"
+  },
+  {
+    "version": "beta-0.8.3",
+    "asset": "NHMCL-StarQuill-beta-0.8.3-win-x64.exe",
+    "sha256": "cde283ba6696b6cb9e0007568eb35d5f507d51735ec940725aef52414d0c3349",
+    "kind": "historical-original",
+    "originalVersion": "0.8.3"
+  },
+  {
+    "version": "beta-0.8.3",
+    "asset": "NHMCL-StarQuill-beta-0.8.3-source.zip",
+    "sha256": "0c6d3690e10850d92a1eaab368694f1f8291658a033ab8ab81bc6d48e7a155e3",
+    "kind": "historical-original",
+    "originalVersion": "0.8.3"
+  },
+  {
+    "version": "beta-0.8.4",
+    "asset": "NHMCL-StarQuill-beta-0.8.4-win-x64.exe",
+    "sha256": "583282721c09124ea5999d24894a8b97b07ec38253a6917030ceba3ef399c6c2",
+    "kind": "historical-original",
+    "originalVersion": "0.8.4"
+  },
+  {
+    "version": "beta-0.8.4",
+    "asset": "NHMCL-StarQuill-beta-0.8.4-source.zip",
+    "sha256": "8bc0b0142c2995dfde055b58f9ed155c9797817ce69b7fe6de52900f6b1ee56c",
+    "kind": "historical-original",
+    "originalVersion": "0.8.4"
+  },
+  {
+    "version": "beta-0.8.5",
+    "asset": "NHMCL-StarQuill-beta-0.8.5-win-x64.exe",
+    "sha256": "11f623a34a70859c8411055e1ffd0728b277e64442b036c60abc59df94db99e7",
+    "kind": "historical-original",
+    "originalVersion": "0.8.5"
+  },
+  {
+    "version": "beta-0.8.5",
+    "asset": "NHMCL-StarQuill-beta-0.8.5-source.zip",
+    "sha256": "e82f2dba51d788df5f0827cfbe6a1f6e01e74f3d2dd869a082dfefc03bcb8004",
+    "kind": "historical-original",
+    "originalVersion": "0.8.5"
+  }
+]
