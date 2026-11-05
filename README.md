@@ -19,7 +19,7 @@
 
 微软认证实现保留，但登录入口暂停，暂无项目 Client ID。旧版 PowerShell 内存优化已停用。CurseForge 需要项目自己的 API Key。整合包拖拽尚未完成桌面实测；日志分析无法保证识别所有退出原因。
 
-最新版本只完成基础及针对性样例验证，不代表全面实机测试通过。详情见 [当前版本说明](UPDATE-0.8.6.md)。
+最新版本只完成基础及针对性样例验证，不代表全面实机测试通过。详情见 [当前版本说明](docs/UPDATE-0.8.6.md)。
 
 ## 使用
 
@@ -44,8 +44,8 @@ npm run dist
 
 ## 版本约定
 
-发布名称、附件与当前版本 Git 标签使用 `beta-0.x.x`；`package.version` 使用合法 SemVer `0.x.x-beta`，`displayVersion` 使用 `beta-0.x.x`。历史二进制仅统一附件名称，保持原始内容，详见 [归档说明](release-history/README.md)。
+发布名称、附件与当前版本 Git 标签使用 `beta-0.x.x`；`package.version` 使用合法 SemVer `0.x.x-beta`，`displayVersion` 使用 `beta-0.x.x`。历史源码压缩包按版本放在 [old-versions](old-versions/README.md)，对应原始 EXE 作为 GitHub Release 附件分发。历史二进制保持原样，只调整附件名称。开发资料按主题放在 [docs](docs/)。
 
 ## 许可与资料
 
-尚未为本项目原创代码指定开源许可证。第三方组件按其各自许可证分发，详见 `THIRD-PARTY-NOTICES.txt` 和 `tools`。功能历史见 `DEVELOPMENT-HISTORY.md`；当前行为以最新版本说明为准。
+尚未为本项目原创代码指定开源许可证。第三方组件按其各自许可证分发，详见 `THIRD-PARTY-NOTICES.txt` 和 `tools`。功能历史见 `docs/DEVELOPMENT-HISTORY.md`；当前行为以最新版本说明为准。
