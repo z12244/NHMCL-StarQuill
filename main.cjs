@@ -1,7 +1,9 @@
 const {app,BrowserWindow,ipcMain,dialog,shell,net,safeStorage}=require('electron');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const {Game,inspectJava}=require('./game.cjs');
-const {layout,scan,writeJSON,migrateLegacy}=require('./storage.cjs');
+const advanced=require('./advanced.cjs');
+const publicSettings=()=>{const {localVersionArgs,...visible}=settings;return visible;};
+const {layout,scan,markStandalone,writeJSON,migrateLegacy}=require('./storage.cjs');
 const {validate,runtimePath,redact}=require('./core.cjs');
 const {scanJava,chooseJava,requiredJava,memoryLimit}=require('./java.cjs');
 const {AccountStore,MicrosoftAuth,validClient}=require('./accounts.cjs');
@@ -18,7 +20,8 @@ const {logBuffer,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latest
 const crypto=require('node:crypto');
 let catalog,market,externalBusy=false,externalController,externalServer,externalSession,externalTimer;
 let accounts,accountError='',javaItems=[],javaScan,loginController,skinServer;
-const fetcher=(...args)=>net.fetch(...args);
+const {electronFetch}=require('./electron-fetch.cjs');
+const fetcher=(url,options)=>electronFetch(net,url,options);
 const auth=new MicrosoftAuth({fetcher});
 const externalAuth=new YggdrasilAuth({fetcher});
 let win,child,busy=false,controller,settings,logs=[],closing=false,gameStopRequested=false,sessionLogs=null,lastCrash=null;
@@ -27,7 +30,7 @@ let state={phase:'idle',text:'准备就绪',percent:0};
 const settingsAccount=()=>accounts.accounts.find(a=>a.id===accounts.active)||{name:'Guest',type:'offline'};
 const home=()=>path.join(portable(),'.starquill-profile');
 const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR||(app.isPackaged?path.dirname(process.execPath):__dirname);
-const defaults=()=>({name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaRoots:[],microsoftClientId:'',selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
+const defaults=()=>({advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaRoots:[],microsoftClientId:'',selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
 const bundled=()=>runtimePath(process.resourcesPath,__dirname,app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
 function status(phase,text,percent=0){state={phase,text,percent:Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):0};send('state',state);}
@@ -40,18 +43,29 @@ function scanRuntimes(){if(!javaScan)javaScan=scanJava({bundled:bundled(),select
 async function accountView(){const data=accounts.public();for(const a of data.accounts){if(a.skin)a.preview=await previewSkin(settings.root,a.skin);}return data;}
 async function changedAccounts(){const data=await accountView();send('accounts-changed',data);return data;}
 function stopSkin(){skinServer?.close();skinServer=null;}
-function engine(extra={}){return new Game({...settings,java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
+function engine(extra={}){return new Game({...settings,toolsDir:path.join(app.isPackaged?process.resourcesPath:__dirname,'tools'),java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
 const agentFile=()=>path.join(app.isPackaged?process.resourcesPath:__dirname,'tools','authlib-injector-1.2.8.jar');
 async function discardExternal(){clearTimeout(externalTimer);const old=externalSession;externalSession=null;if(old)await externalAuth.invalidate(old).catch(()=>{});}
 const runJob=async(fn,title)=>{requireIdle();busy=true;controller=new AbortController();status('preparing',title);try{const result=await fn(controller.signal);status('idle','准备就绪');return result;}catch(e){log(e.message);status('error',e.message);throw e;}finally{busy=false;controller=null;}};
-registerInstances({ipcMain,dialog,shell,window:()=>win,settings:()=>settings,idle:requireIdle,job:runJob,changed:async()=>send('instances-changed',await local())});
+registerInstances({ipcMain,dialog,shell,persist,window:()=>win,settings:()=>settings,idle:requireIdle,job:runJob,changed:async()=>send('instances-changed',await local())});
 registerOfflinePacks({ipcMain,dialog,window:()=>win,settings:()=>settings,job:runJob,progress:(text,percent)=>status('downloading',text,percent),chooseJava:async(id,required,options)=>options.javaMode==='auto'?chooseJava(await scanRuntimes(),required,options.memory):inspectJava(options.java),changed:async id=>{settings.selected=id;await persist();send('instances-changed',await local());send('market-changed',{selected:id});}});
-market=registerMarket({ipcMain,dialog,shell,safeStorage,home,fetcher,log,window:()=>win,settings:()=>settings,idle:requireIdle,getManifest:()=>catalog.refresh(false),progress:(text,percent=0)=>status('downloading',text,percent),chooseJava:async required=>{const j=settings.javaMode==='auto'?chooseJava(await scanRuntimes(),required,settings.memory):await inspectJava(settings.java);if(j.major!==required)throw Error(`此版本需要 Java ${required}，请在启动设置中选择或扫描对应 Java`);return j;},changed:async id=>{if(id){settings.selected=id;await persist();}send('instances-changed',await local());send('market-changed',{selected:id});},job:runJob});
+market=registerMarket({ipcMain,dialog,shell,fetcher,log,window:()=>win,settings:()=>settings,idle:requireIdle,getManifest:()=>catalog.refresh(false),progress:(text,percent=0)=>status('downloading',text,percent),chooseJava:async required=>{const j=settings.javaMode==='auto'?chooseJava(await scanRuntimes(),required,settings.memory):await inspectJava(settings.java);if(j.major!==required)throw Error(`此版本需要 Java ${required}，请在启动设置中选择或扫描对应 Java`);return j;},changed:async id=>{if(id){settings.selected=id;await persist();}send('instances-changed',await local());send('market-changed',{selected:id});},job:runJob});
 require('node:fs').mkdirSync(home(),{recursive:true});app.setPath('userData',home());
 app.whenReady().then(async()=>{
   await fs.mkdir(home(),{recursive:true});settings=defaults();try{const saved=JSON.parse(await fs.readFile(path.join(home(),'settings.json'),'utf8'));settings={...settings,...saved,javaMode:saved.javaMode||(saved.java?'manual':'auto')};}catch{}
   settings.memory=Math.min(memoryLimit(),Math.max(1,Math.floor(Number(settings.memory)||4)));
-  settings.root=path.join(portable(),'.minecraft');await fs.mkdir(settings.root,{recursive:true});settings.optimizeMemory=false;lastCrash=await latestCrash(settings.root);
+  const adjacentRoot=path.join(portable(),'.minecraft');
+  // Previous profiles stored even the portable default as an absolute path. Only
+  // persist an external root as a choice after the user explicitly saves it.
+  const customRoot=settings.customRoot;
+  settings.root=adjacentRoot;
+  if(typeof customRoot==='string'&&path.isAbsolute(customRoot)){
+    try {
+      if(!(await fs.stat(customRoot)).isDirectory())throw Error('目录无效');
+      settings.root=customRoot;
+    } catch { log('上次选择的游戏目录当前不可用，已打开启动器旁的 .minecraft'); }
+  }
+  await fs.mkdir(settings.root,{recursive:true});settings.optimizeMemory=false;lastCrash=await latestCrash(settings.root);
   catalog=new ManifestCatalog({root:settings.root,mode:settings.source,fetcher,onUpdate:data=>send('versions-changed',data)});
   accounts=new AccountStore(path.join(home(),'accounts.json'),safeStorage);try{await accounts.load();}catch(e){accountError=e.message;}
   try{const receipt=JSON.parse(await fs.readFile(path.join(home(),'welcome.json'),'utf8'));welcomeNeeded=safeStorage.decryptString(Buffer.from(receipt.receipt,'base64'))!==('starquill-welcome-v1:'+os.hostname());}catch{welcomeNeeded=true;}
@@ -64,10 +78,10 @@ app.whenReady().then(async()=>{
 });
 app.on('before-quit',()=>{loginController?.abort();externalController?.abort();clearTimeout(externalTimer);controller?.abort();stopSkin();});
 app.on('window-all-closed',()=>app.quit());
-ipcMain.handle('boot',async()=>({settings,welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('./package.json').displayVersion||app.getVersion()}));
+ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('./package.json').displayVersion||app.getVersion()}));
 ipcMain.handle('versions',async(_,force=false)=>catalog.refresh(force===true));
 ipcMain.handle('instances',()=>local());
-ipcMain.handle('install-vanilla',async(_,id)=>runJob(async signal=>{const manifest=await catalog.refresh(false);if(!manifest.versions.some(v=>v.id===id))throw Error('请选择官方游戏版本');const game=engine({version:id,signal,onProgress:p=>status('downloading','安装 Minecraft '+id,p.total?p.done/p.total*100:0)});await game.prepare();settings.selected=id;await persist();send('instances-changed',await local());send('market-changed',{selected:id});return id;},'安装 Minecraft 原版'));
+ipcMain.handle('install-vanilla',async(_,id)=>runJob(async signal=>{const manifest=await catalog.refresh(false);if(!manifest.versions.some(v=>v.id===id))throw Error('请选择官方游戏版本');const game=engine({version:id,signal,onProgress:p=>status('downloading','安装 Minecraft '+id,p.total?p.done/p.total*100:0)});await game.prepare();await markStandalone(settings.root,id);settings.selected=id;await persist();send('instances-changed',await local());send('market-changed',{selected:id});return id;},'安装 Minecraft 原版'));
 ipcMain.handle('system-memory',()=>memorySnapshot());
 ipcMain.handle('crash-latest',()=>lastCrash);
 ipcMain.handle('crash-folder',async()=>{if(!lastCrash)throw Error('还没有自动导出的崩溃报告');await fs.access(lastCrash.file);shell.showItemInFolder(lastCrash.file);return true;});
@@ -79,9 +93,11 @@ ipcMain.handle('settings',async(_,o)=>{requireIdle();validate({version:o.selecte
   if(!['auto','manual'].includes(o.javaMode))throw Error('Java 模式无效');
   if(o.javaMode==='manual'&&!o.java)throw Error('手动模式下请选择 Java');
   if(o.microsoftClientId&&!validClient(o.microsoftClientId))throw Error('Client ID 应为应用注册提供的 UUID，不是密钥');
+  const launchAdvanced=advanced.effective(o.advanced===undefined?settings.advanced:o.advanced);
   await fs.mkdir(o.root,{recursive:true});await fs.access(o.root,require('node:fs').constants.W_OK);
   const rootChanged=path.resolve(o.root)!==settings.root;
-  settings={...settings,name:settingsAccount().name,memory:o.memory,optimizeMemory:false,java:o.java,javaMode:o.javaMode,microsoftClientId:o.microsoftClientId||'',selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();catalog.mode=settings.source;catalog.root=settings.root;catalog.file=path.join(settings.root,'.starquill','catalog-cache.json');if(rootChanged){lastCrash=await latestCrash(settings.root);send('crash-report',lastCrash);}await changedAccounts();return {settings,instances:await local()};
+  settings.customRoot=path.relative(path.join(portable(),'.minecraft'),path.resolve(o.root))?path.resolve(o.root):null;
+  settings={...settings,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:false,java:o.java,javaMode:o.javaMode,microsoftClientId:o.microsoftClientId||'',selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();catalog.mode=settings.source;catalog.root=settings.root;catalog.file=path.join(settings.root,'.starquill','catalog-cache.json');if(rootChanged){lastCrash=await latestCrash(settings.root);send('crash-report',lastCrash);}await changedAccounts();return {settings:publicSettings(),instances:await local()};
 });
 ipcMain.handle('select-root',async()=>{requireIdle();const r=await dialog.showOpenDialog(win,{title:'选择已有 .minecraft 或启动器所在文件夹',defaultPath:settings.root,properties:['openDirectory','createDirectory']});if(r.canceled)return null;let root=r.filePaths[0];try{if((await fs.stat(path.join(root,'.minecraft'))).isDirectory())root=path.join(root,'.minecraft');}catch{}return {root,instances:await scan(root)};});
 ipcMain.handle('migrate',async()=>{requireIdle();const r=await dialog.showOpenDialog(win,{title:'选择旧 Aster 的 instances 文件夹（复制导入，不删除原数据）',defaultPath:path.join(app.getPath('appData'),'aster-launcher','instances'),properties:['openDirectory']});if(r.canceled)return null;

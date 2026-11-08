@@ -38,6 +38,18 @@ test('session logs retain a bounded tail',()=>{
   const logs=logBuffer(16);logs.append('abcdefghijklmnop');logs.append('last');assert.equal(logs.text(),'last');
   logs.append('01234567890123456789');assert.equal(Buffer.byteLength(logs.text()),16);
 });
+test('decode split Windows Java bytes and UTF-8 mod output; recognize missing entry point',async()=>{
+  const {Readable}=require('node:stream'),{once}=require('node:events');
+  const {pipeJavaLog}=require('../java-output.cjs');
+  const stream=Readable.from([Buffer.from([0xb4]),Buffer.from([0xed,0xce,0xf3,10]),Buffer.from('模组✓\n'),Buffer.from('last')]);
+  let text='';
+  pipeJavaLog(stream,'GBK',line=>{text+=line;});
+  await once(stream,'end');
+  assert.equal(text,'错误\n模组✓\nlast');
+  for(const message of ['错误: 找不到或无法加载主类 example.Main','Error: Could not find or load main class example.Main']){
+    assert.ok(analyzeCrash(message,1).some(f=>f.id==='main-class'&&f.evidence.includes('example.Main')));
+  }
+});
 test('crash ZIP exports fresh logs, sanitizes secrets and restores last report',async()=>{
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-basic-crash-'));
   const gameDir=path.join(root,'versions','测试 1.21.1');

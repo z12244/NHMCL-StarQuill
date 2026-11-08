@@ -7,7 +7,8 @@ function parseJava(text,file){
   const major=Number(version?.replace(/^1\./,'').match(/^\d+/)?.[0]);
   if(!major)throw Error('无法识别 Java 版本');
   const arch=property('os.arch')||(/64-Bit/i.test(text)?'amd64':'x86');
-  return {path:file,home:property('java.home'),major,version,arch,bits:/64|aarch64/.test(arch)?64:32,vendor:property('java.vendor')||'Java',description:text.split('\n').find(s=>/version "/.test(s))?.trim()||version};
+  const native=property('native.encoding')||property('sun.jnu.encoding')||property('file.encoding')||'UTF-8';
+  return {path:file,home:property('java.home'),major,version,arch,bits:/64|aarch64/.test(arch)?64:32,vendor:property('java.vendor')||'Java',stdoutEncoding:property('stdout.encoding')||native,stderrEncoding:property('stderr.encoding')||native,description:text.split('\n').find(s=>/version "/.test(s))?.trim()||version};
 }
 async function inspectJava(file){
   if(typeof file!=='string'||!path.isAbsolute(file)||!/^javaw?\.exe$/i.test(path.basename(file)))throw Error('请选择有效的 java.exe 或 javaw.exe');

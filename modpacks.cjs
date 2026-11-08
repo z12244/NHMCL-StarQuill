@@ -1,9 +1,35 @@
-const fs=require('node:fs/promises'),path=require('node:path');const {pool,hashFile}=require('./downloads.cjs');const {layout,versionName,under,writeJSON}=require('./storage.cjs');const {inspectPack,extractOverrides,cacheFile}=require('./content-install.cjs');const {exists,relativeFile,noLinks}=require('./content-utils.cjs');
+const fs=require('node:fs/promises'),path=require('node:path');const {pool,hashFile}=require('./downloads.cjs');const {layout,versionName,under,writeJSON,scan,markStandalone}=require('./storage.cjs');const {inspectPack,extractOverrides,cacheFile}=require('./content-install.cjs');const {exists,relativeFile,noLinks}=require('./content-utils.cjs');
 class Modpacks{
  constructor({resources,installer,loaders}){Object.assign(this,{resources,installer,loaders});}
  async plan(file,id,signal){const pack=inspectPack(file);if(!id?.trim()){let base=String(pack.name||path.basename(file,path.extname(file))).replace(/[<>:"/\\|?*\x00-\x1f]/g,'-').trim().replace(/[. ]+$/,'').slice(0,100).replace(/[. ]+$/,'')||'整合包';try{versionName(base);}catch{base='整合包-'+base;}id=base;let n=2;while(await exists(layout(this.installer.root,id).version))id=base+' ('+(n++)+')';}versionName(id);if(await exists(layout(this.installer.root,id).version))throw Error('版本名称已存在，请更换名称');versionName(pack.game);let files=pack.files;if(pack.format==='curseforge'){files=await poolMap(pack.files,6,async f=>{const project=await this.resources.project('curseforge',f.projectId,signal),item=await this.resources.file(project,f.versionId,{game:pack.game,loader:pack.loader},signal);const folder=({mod:'mods',resourcepack:'resourcepacks',shader:'shaderpacks'})[project.kind];if(!folder)throw Error('整合包内的资源类型无效');return {...item,path:relativeFile(folder+'/'+item.original),filename:item.original,reason:'整合包锁定版本'};});}
  return {type:'pack',archive:file,archiveHash:await hashFile(file,'sha256'),pack:{...pack,files:undefined},id,files,target:{game:pack.game,loader:pack.loader},warnings:[...(pack.optional?[`整合包包含 ${pack.optional} 个可选文件，默认不安装。`]:[]),'保留整合包作者指定的文件名，避免破坏配置中的路径引用。']};}
- async install(plan,signal){if(await hashFile(plan.archive,'sha256')!==plan.archiveHash)throw Error('整合包在生成清单后发生变化，请重新导入');const {pack,id}=plan;const download=await this.installer.downloader(signal).init();for(const f of plan.files)if(!f.url&&!await download.valid({...f,file:cacheFile(this.installer.root,f)}))throw Error('请先完成清单中的手动下载：'+f.original);await download.all(plan.files.map(f=>({...f,file:cacheFile(this.installer.root,f)})));const stage=await this.loaders.createStage(pack.game,id,signal);try{await this.loaders.installInStage(stage,{game:pack.game,loader:pack.loader,version:pack.version},signal);const target=layout(stage.root,id).game;for(const f of plan.files){if(signal?.aborted)throw Error('已取消整合包安装');const dest=under(target,relativeFile(f.path));await fs.mkdir(path.dirname(dest),{recursive:true});await fs.copyFile(cacheFile(this.installer.root,f),dest);}await extractOverrides(plan.archive,pack,target);const records=plan.files.filter(f=>f.project).map(f=>({source:f.project.source,projectId:f.project.id,versionId:f.versionId,original:f.original,path:f.path,hashes:f.hashes,size:f.size}));await writeJSON(path.join(target,'.starquill-content.json'),{schema:1,files:records});await writeJSON(path.join(target,'starquill-pack.json'),{name:pack.name,format:pack.format,game:pack.game,loader:pack.loader,loaderVersion:pack.version,installedAt:new Date().toISOString()});return await this.loaders.finish(stage,signal);}finally{await this.loaders.cleanStage(stage.root);}}
+ async install(plan,signal) {
+   if(await hashFile(plan.archive,'sha256')!==plan.archiveHash)throw Error('整合包在生成清单后发生变化，请重新导入');
+   const {pack,id}=plan,root=this.installer.root;
+   const download=await this.installer.downloader(signal).init();
+   for(const file of plan.files) {
+     if(!file.url&&!await download.valid({...file,file:cacheFile(root,file)}))throw Error('请先完成清单中的手动下载：'+file.original);
+   }
+   await download.all(plan.files.map(file=>({...file,file:cacheFile(root,file)})));
+   const baseWasVisible=(await scan(root)).some(v=>v.id===pack.game&&v.ready);
+   const stage=await this.loaders.createStage(pack.game,id,signal);
+   try {
+     await this.loaders.installInStage(stage,{game:pack.game,loader:pack.loader,version:pack.version},signal);
+     const target=layout(stage.root,id).game;
+     for(const file of plan.files) {
+       if(signal?.aborted)throw Error('已取消整合包安装');
+       const dest=under(target,relativeFile(file.path));
+       await fs.mkdir(path.dirname(dest),{recursive:true});
+       await fs.copyFile(cacheFile(root,file),dest);
+     }
+     await extractOverrides(plan.archive,pack,target);
+     const records=plan.files.filter(f=>f.project).map(f=>({source:f.project.source,projectId:f.project.id,versionId:f.versionId,original:f.original,path:f.path,hashes:f.hashes,size:f.size}));
+     await writeJSON(path.join(target,'.starquill-content.json'),{schema:1,files:records});
+     await writeJSON(path.join(target,'starquill-pack.json'),{name:pack.name,format:pack.format,game:pack.game,loader:pack.loader,loaderVersion:pack.version,installedAt:new Date().toISOString()});
+     if(baseWasVisible)await markStandalone(root,pack.game);
+     return await this.loaders.finish(stage,signal);
+   } finally { await this.loaders.cleanStage(stage.root); }
+ }
 }
 async function poolMap(items,n,fn){const result=new Array(items.length);await pool(items.map((value,index)=>({value,index})),n,async({value,index})=>result[index]=await fn(value));return result;}
 module.exports={Modpacks};

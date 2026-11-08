@@ -25,18 +25,18 @@ class ResourceSearch{
   constructor(resources,names){this.resources=resources;this.names=names;this.cache=new Map();}
   async search(input,signal){
     const {kind='mod',game='',loader=''}=input;if(!['mod','modpack','resourcepack','shader'].includes(kind)||!['','forge','neoforge','fabric'].includes(loader))throw Error('搜索条件无效');
-    const expanded=expandQuery(input.query),offset=Math.max(0,Math.floor(Number(input.offset)||0)),key=JSON.stringify([expanded.query,kind,game,loader,!!this.resources.key]);
+    const expanded=expandQuery(input.query),offset=Math.max(0,Math.floor(Number(input.offset)||0)),key=JSON.stringify([expanded.query,kind,game,loader]);
     let entry=this.cache.get(key);if(!entry||Date.now()-entry.time>5*60*1000){entry={time:Date.now(),pages:new Map(),items:[],seen:new Set(),more:true,warnings:[]};this.cache.set(key,entry);while(this.cache.size>8)this.cache.delete(this.cache.keys().next().value);}
     // A bounded page of each query/source, cached and merged, avoids constant polling.
     const page=entry.pages.size;if(entry.items.length<offset+20&&entry.more){
       const timeout=signal?AbortSignal.any([signal,AbortSignal.timeout(14000)]):AbortSignal.timeout(14000);
-      const sources=this.resources.key?['modrinth','curseforge']:['modrinth'],jobs=[],found=[],warnings=[];let more=false,success=0;
+      const sources=['modrinth','curseforge'],jobs=[],found=[],warnings=[];let more=false,success=0;
       for(const source of sources)for(const query of expanded.terms)jobs.push({source,query});
       await pool(jobs,4,async j=>{try{const r=await this.resources.search({...input,...j,offset:page*20},timeout);success++;more ||= r.hasMore;r.items.forEach((p,i)=>found.push({...p,_score:rank(p,expanded,j.query,i),alternatives:[]}));}catch(e){if(signal?.aborted)throw e;warnings.push((j.source==='modrinth'?'Modrinth':'CurseForge')+' 暂未返回完整结果');}});
       if(/[\u3400-\u9fff]/.test(expanded.query)&&kind==='mod'){
         try{const rows=await this.names.search(expanded.query,page+1,timeout);success++;more ||= rows.length>=20;
           await pool(rows.slice(0,8),3,async item=>{try{const wiki=await this.names.page(item.id,timeout),candidates=[];
-            for(const site of wiki.sites){if(site.source==='curseforge'&&!this.resources.key)continue;try{let id=site.id;if(site.slug){const r=await this.resources.search({source:site.source,kind,query:site.slug},timeout);id=r.items.find(p=>p.slug===site.slug)?.id;if(!id)continue;}const project=await this.resources.project(site.source,id,timeout);if(project.kind!==kind)continue;const versions=await this.resources.versions(project,{game,loader},timeout);if(versions.length)candidates.push(project);}catch{}}
+            for(const site of wiki.sites){try{let id=site.id;if(site.slug){const r=await this.resources.search({source:site.source,kind,query:site.slug},timeout);id=r.items.find(p=>p.slug===site.slug)?.id;if(!id)continue;}const project=await this.resources.project(site.source,id,timeout);if(project.kind!==kind)continue;const versions=await this.resources.versions(project,{game,loader},timeout);if(versions.length)candidates.push(project);}catch{}}
             if(candidates.length){const p=candidates.find(p=>p.source==='modrinth')||candidates[0];found.push({...p,chineseName:wiki.name,wiki:wiki.url,_score:150,alternatives:candidates.filter(c=>c!==p)});}
           }catch{}});
         }catch{warnings.push('MC百科中文匹配暂不可用，已使用关键词扩展搜索');}
@@ -53,8 +53,8 @@ class ResourceSearch{
     const candidates=[input,...(Array.isArray(input.alternatives)?input.alternatives.slice(0,3):[])],choices=[];let lastError;
     const name=input.chineseName&&input.wiki?{name:input.chineseName,url:input.wiki}:await this.names.lookup(input,signal);
     // Verify cross-platform identity through the encyclopedia, never title alone.
-    if(name&&candidates.length===1){try{const id=/^https:\/\/www\.mcmod\.cn\/class\/(\d+)\.html$/.exec(name.url)?.[1];if(id){const wiki=await this.names.page(id,signal);for(const site of wiki.sites){if(site.source==='curseforge'&&!this.resources.key)continue;let projectId=site.id;if(site.slug){const r=await this.resources.search({source:site.source,kind:input.kind,query:site.slug},signal);projectId=r.items.find(p=>p.slug===site.slug)?.id;}if(projectId&&!candidates.some(c=>c.source===site.source&&(c.id===projectId||c.slug===projectId)))candidates.push({...site,id:projectId});}}}catch{}}
-    for(const c of candidates){if(c.source==='curseforge'&&!this.resources.key)continue;try{const project=await this.resources.project(c.source,c.id,signal),t=project.kind==='modpack'?{}:target;
+    if(name&&candidates.length===1){try{const id=/^https:\/\/www\.mcmod\.cn\/class\/(\d+)\.html$/.exec(name.url)?.[1];if(id){const wiki=await this.names.page(id,signal);for(const site of wiki.sites){let projectId=site.id;if(site.slug){const r=await this.resources.search({source:site.source,kind:input.kind,query:site.slug},signal);projectId=r.items.find(p=>p.slug===site.slug)?.id;}if(projectId&&!candidates.some(c=>c.source===site.source&&(c.id===projectId||c.slug===projectId)))candidates.push({...site,id:projectId});}}}catch{}}
+    for(const c of candidates){try{const project=await this.resources.project(c.source,c.id,signal),t=project.kind==='modpack'?{}:target;
       const versions=await this.resources.versions(project,t,signal);let direct=false;
       if(versions.length){const f=await this.resources.file(project,versions[0].id,t,signal);direct=!!f.url;}
       choices.push({project,versions,target:t,direct});
@@ -66,5 +66,11 @@ class ResourceSearch{
     return best;
   }
 }
-function rank(p,e,term,index){const n=normalized(p.title),q=normalized(e.query);return (q&&n===q?100:q&&n.includes(q)?65:0)+(term===e.query?15:0)+(p.source==='modrinth'?2:0)+(20-index)/20;}
+function rank(p,e,term,index) {
+  const title=normalized(p.title),query=normalized(e.query);
+  // Projects often label the same project "(NeoForge)" or "(Forge/Fabric)".
+  const base=normalized(p.title.replace(/\s*\((?:(?:neoforge|forge|fabric|quilt)[\s,/&+|-]*)+\)\s*$/i,''));
+  const exact=query&&(query===title||query===base);
+  return (exact?100:query&&title.includes(query)?65:0)+(term===e.query?15:0)+(p.source==='modrinth'?2:0)+(20-index)/20;
+}
 module.exports={ResourceSearch,expandQuery};

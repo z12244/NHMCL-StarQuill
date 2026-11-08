@@ -23,6 +23,7 @@ function logBuffer(limit = FILE_LIMIT) {
 function analyzeCrash(text, code, signal) {
   const findings = [];
   const rules = [
+    ['main-class', /(?:Could not find or load main class|找不到或无法加载主类|找不到或無法載入主類別)\s+[\w.$/]+/i, 'Java 找不到游戏启动主类', '检查此版本 JSON 中的 mainClass、客户端 JAR 和加载器依赖。可从资源工坊重新安装相同游戏及加载器版本。'],
     ['heap', /OutOfMemoryError:\s*(?:Java heap space|GC overhead limit exceeded)|Out of memory!/i, '游戏堆内存不足', '在有足够可用内存时适当提高分配；也可减少模组、视距或资源包。'],
     ['native-memory', /There is insufficient memory|Native memory allocation.*failed|Could not reserve enough space|unable to create native thread|OutOfMemoryError:\s*(?:Direct buffer memory|Metaspace)/i, '系统或 Java 本地内存不足', '关闭不需要的程序，并给 Windows 留出内存；不要继续盲目提高游戏最大内存。'],
     ['java', /UnsupportedClassVersionError|compiled by a more recent version|class file version .*only recognizes|Unrecognized VM option|Invalid maximum heap size/i, 'Java 版本或启动参数不兼容', '先启用自动匹配 Java，核对版本设置中的手动 Java 与额外启动参数。'],

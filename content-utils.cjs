@@ -1,6 +1,6 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const {under,versionName}=require('./storage.cjs');
-const UA='NHMCL-StarQuill/beta-0.8.6 (StarQuill_z12244; Minecraft launcher)';
+const UA='NHMCL-StarQuill/'+require('./package.json').displayVersion+' (StarQuill_z12244; Minecraft launcher)';
 function httpsURL(value){const u=new URL(value);if(u.protocol!=='https:'||u.username||u.password||u.port&&!['443'].includes(u.port)||!u.hostname.includes('.')||/^(localhost|127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/i.test(u.hostname)||u.hostname.includes(':')||/^[\d.]+$/.test(u.hostname))throw Error('下载地址必须是公开 HTTPS 地址');return u.href;}
 async function response(fetcher,url,signal,headers={}){httpsURL(url);const r=await fetcher(url,{signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000),headers:{'User-Agent':UA,...headers},redirect:'error'});if(!r.ok)throw Error('资源服务请求失败（HTTP '+r.status+'）');return r;}
 async function json(fetcher,url,signal,headers){const r=await response(fetcher,url,signal,headers);const body=await r.text();if(body.length>20*1024*1024)throw Error('资源列表过大');return JSON.parse(body);}

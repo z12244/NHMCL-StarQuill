@@ -1,4 +1,14 @@
 node_modules/
 dist/
+.minecraft/
+.starquill-profile/
+/win-unpacked/
+/internal/project.bin
+/tests/tmp/
+/NHMCL-StarQuill*.exe
+/NHMCL-StarQuill*-win-x64.zip
+.env
+.env.local
 runtime/*
 !runtime/README.txt
+!runtime/README.md

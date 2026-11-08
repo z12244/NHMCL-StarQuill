@@ -3,6 +3,7 @@ const {createReadStream, createWriteStream} = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {once} = require('node:events');
+const {httpsURL} = require('./content-utils.cjs');
 
 const MIRROR = 'https://bmclapi2.bangbang93.com';
 const MANIFEST = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
@@ -33,8 +34,8 @@ async function pool(items, limit, action) {
   if (failure) throw failure;
 }
 class Downloads {
-  constructor({root,mode='auto',concurrency=16,signal,onProgress=()=>{},onLog=()=>{},fetcher=fetch,sourceResolver=sources,timeout=20000}={}) {
-    Object.assign(this,{root,mode,concurrency,signal,onProgress,onLog,fetcher,sourceResolver,timeout});
+  constructor({root,mode='auto',concurrency=16,signal,onProgress=()=>{},onLog=()=>{},fetcher=fetch,sourceResolver=sources,headerResolver=()=>({}),allowLoopbackHttp=false,timeout=20000}={}) {
+    Object.assign(this,{root,mode,concurrency,signal,onProgress,onLog,fetcher,sourceResolver,headerResolver,allowLoopbackHttp,timeout});
     this.cache={};this.stats={reused:0,downloaded:0,bytes:0,total:0,done:0};this.started=Date.now();this.last=0;this.mirrorFailures=0;this.mirrorBlockedUntil=0;
   }
   async init() {this.cacheFile=path.join(this.root,'.starquill','verified-files.json');try{this.cache=JSON.parse(await fs.readFile(this.cacheFile,'utf8'));}catch{}return this;}
@@ -61,7 +62,9 @@ class Downloads {
     throw Error('无法获取版本信息：'+last?.message);
   }
   async ensure(item) {
-    this.checkAbort();if(await this.valid(item)){this.stats.reused++;return;}
+    this.checkAbort();
+    if(this.trustExisting){try{const stat=await fs.stat(item.file);if(stat.isFile()&&(stat.size>0||item.size===0)){this.stats.reused++;return;}}catch(e){if(e.code!=='ENOENT')throw e;}}
+    if(await this.valid(item)){this.stats.reused++;return;}
     if(!item.url)throw Error('缺少本地文件，且版本配置没有下载地址：'+path.relative(this.root,item.file));
     await fs.mkdir(path.dirname(item.file),{recursive:true});
     let last;
@@ -71,7 +74,18 @@ class Downloads {
         if(isMirror&&!/HTTP (400|403|404|410)/.test(e.message)&&++this.mirrorFailures>=2){this.mirrorBlockedUntil=Date.now()+60000;if(this.mode==='auto')this.onLog('镜像节点连接不稳定，后续下载暂时使用官方源');}
         if(/HTTP (400|403|404|410)/.test(e.message)||(this.mode==='auto'&&isMirror))break;}
     }
-    throw Error('下载失败：'+path.basename(item.file)+'（'+last?.message+'）');
+    throw Error('下载失败：'+(item.original||path.basename(item.file))+'（'+last?.message+'）');
+  }
+  transferURL(value){const url=new URL(value);if(this.allowLoopbackHttp&&url.protocol==='http:'&&url.hostname==='127.0.0.1'&&!url.username&&!url.password)return url.href;return httpsURL(value);}
+  async fetchTransfer(url,signal,headers){let current=this.transferURL(url);for(let redirects=0;redirects<5;redirects++){
+      const extra=this.headerResolver(current)||{};
+      const reply=await this.fetcher(current,{signal,headers:{...headers,...extra},redirect:'manual'});
+      if([301,302,303,307,308].includes(reply.status)){
+        const location=reply.headers.get('location');if(reply.body)await reply.body.cancel().catch(()=>{});
+        if(!location)throw Error('下载重定向缺少地址');current=this.transferURL(new URL(location,current).href);continue;
+      }
+      return reply;
+    }throw Error('下载重定向次数过多');
   }
   async transfer(item,url) {
     const part=item.file+'.starquill.part',info=part+'.json';let offset=0;
@@ -84,7 +98,8 @@ class Downloads {
     const signal=this.signal?AbortSignal.any([this.signal,controller.signal]):controller.signal;
     let stream;
     try {
-      const r=await this.fetcher(url,{signal,headers:offset?{Range:`bytes=${offset}-`,'Accept-Encoding':'identity'}:{'Accept-Encoding':'identity'}});
+      let r=await this.fetchTransfer(url,signal,offset?{Range:`bytes=${offset}-`,'Accept-Encoding':'identity'}:{'Accept-Encoding':'identity'});
+      if(offset&&[400,404,416].includes(r.status)){await r.body?.cancel();offset=0;r=await this.fetchTransfer(url,signal,{'Accept-Encoding':'identity'});}
       if(!r.ok)throw Error('HTTP '+r.status);
       if(offset&&r.status===206){const m=/^bytes (\d+)-(\d+)\/(\d+|\*)$/.exec(r.headers.get('content-range')||'');if(!m||Number(m[1])!==offset)throw Error('断点响应范围无效');}
       else if(r.status===200)offset=0;else if(r.status===206)throw Error('意外的分段响应');
