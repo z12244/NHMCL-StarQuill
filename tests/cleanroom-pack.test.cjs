@@ -1,0 +1,16 @@
+const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto'),Zip=require('adm-zip');
+const {Modpacks}=require('../modpacks.cjs'),{ContentInstaller}=require('../content-install.cjs'),{Loaders,targetInfo}=require('../loaders.cjs'),{layout,scan,resolveVersion}=require('../storage.cjs'),{javaRequirement}=require('../java.cjs');
+const descriptor=body=>({url:'https://example.com/'+body+'.jar',sha1:crypto.createHash('sha1').update(body).digest('hex'),size:Buffer.byteLength(body)});
+test('partial Cleanroom instance composes on vanilla without running the Forge installer and publishes one isolated version',async t=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-cleanroom-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));
+ const base={id:'1.12.2',mainClass:'net.minecraft.client.main.Main',type:'release',javaVersion:{majorVersion:8},downloads:{client:descriptor('client')},libraries:[{name:'org.lwjgl.lwjgl:lwjgl:2.9',downloads:{artifact:descriptor('old')}}],arguments:{jvm:[],game:[]}};
+ const fetcher=async url=>url.endsWith('metadata.json')?Response.json(base):new Response(url.includes('cleanroom')?'cleanroom':url.endsWith('old.jar')?'old':'client');
+ let chosen;const loaders=new Loaders({root,fetcher,mode:'official',chooseJava:async requirement=>{chosen=requirement;return {major:25,path:'unused'};},getManifest:async()=>({versions:[{id:'1.12.2',url:'https://example.com/metadata.json'}]})});
+ loaders.installInStage=async()=>assert.fail('Cleanroom must not invoke the Forge installer');
+ const zip=new Zip();zip.addFile('mmc-pack.json',Buffer.from(JSON.stringify({formatVersion:1,components:[{uid:'net.minecraft',version:'1.12.2'},{uid:'net.minecraftforge',version:'0.7.14-alpha'}]})));zip.addFile('instance.cfg',Buffer.from('name=Cleanroom integration'));
+ zip.addFile('patches/net.minecraftforge.json',Buffer.from(JSON.stringify({uid:'net.minecraftforge',name:'Cleanroom',version:'0.7.14-alpha',mainClass:'top.outlands.foundation.boot.Foundation',compatibleJavaMajors:[25],'-libraries':['org.lwjgl.lwjgl:lwjgl'],libraries:[{name:'com.cleanroommc:cleanroom:0.7.14-alpha:universal',downloads:{artifact:descriptor('cleanroom')}}]})));
+ zip.addFile('.minecraft/config/test.cfg',Buffer.from('preserved=true'));const file=path.join(root,'cleanroom.zip');zip.writeZip(file);
+ const packs=new Modpacks({installer:new ContentInstaller({root,fetcher}),loaders});const plan=await packs.plan(file,'');assert.equal(plan.pack.loader,'cleanroom');assert.equal(plan.pack.patchBase,'vanilla');
+ const id=await packs.install(plan),r=await resolveVersion(root,id);assert.equal(chosen.preferred,25);assert.equal(r.raw.inheritsFrom,undefined);assert.equal(r.meta.mainClass,'top.outlands.foundation.boot.Foundation');assert.equal(javaRequirement(r.meta).preferred,25);assert.equal((await targetInfo(root,id)).loader,'cleanroom');
+ assert.deepEqual((await scan(root)).map(v=>v.id),[id]);assert.equal(await fs.readFile(path.join(layout(root,id).game,'config/test.cfg'),'utf8'),'preserved=true');assert.ok(!r.meta.libraries.some(l=>l.name.startsWith('org.lwjgl.lwjgl:')));
+});

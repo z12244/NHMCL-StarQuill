@@ -40,9 +40,31 @@ async function scanJava({bundled,selected,root,extraRoots=[],roots,inspect=inspe
   await Promise.all(Array.from({length:Math.min(4,queue.length)},async()=>{while(queue.length){const file=queue.shift();try{const item=await inspect(file);const key=item.path.toLowerCase();if(unique.has(key))continue;unique.add(key);item.bundled=!!bundled&&path.resolve(item.path).toLowerCase()===path.resolve(bundled).toLowerCase();items.push(item);}catch{}}}));
   return items.sort((a,b)=>b.major-a.major||b.bits-a.bits||b.version.localeCompare(a.version,undefined,{numeric:true}));
 }
-function requiredJava(meta){if(Number.isInteger(meta.javaVersion?.majorVersion))return meta.javaVersion.majorVersion;
+function vanillaJava(meta){if(Number.isInteger(meta.javaVersion?.majorVersion))return meta.javaVersion.majorVersion;
   const v=String(meta.id||'').match(/^1\.(\d+)(?:\.(\d+))?/);if(v){const minor=Number(v[1]),patch=Number(v[2]||0);if(minor>20||minor===20&&patch>=5)return 21;if(minor>=18)return 17;if(minor===17)return 16;}return 8;}
-function chooseJava(items,required,memory){const compatible=items.filter(j=>j.major===required&&j.bits===64&&/amd64|x86_64|x64/i.test(j.arch));
-  compatible.sort((a,b)=>Number(b.bundled)-Number(a.bundled)||b.version.localeCompare(a.version,undefined,{numeric:true}));
-  if(!compatible.length)throw Error(`未找到适合此版本的 64 位 Java ${required}。请安装后重新扫描，或在 Java 设置中手动选择。`);return compatible[0];}
-module.exports={memoryLimit,parseJava,inspectJava,scanJava,requiredJava,chooseJava};
+function normalizeJavaRequirement(value){
+  if(Number.isInteger(value)&&value>0)return {min:value,max:value,preferred:value};
+  if(!value||typeof value!=='object')throw Error('Java 兼容范围无效');
+  const min=Number(value.min),max=Number(value.max),preferred=Number(value.preferred??min);
+  const majors=value.majors===undefined?undefined:[...new Set(value.majors)];
+  if(!Number.isInteger(min)||!Number.isInteger(max)||!Number.isInteger(preferred)||min<1||max<min||preferred<min||preferred>max||
+    (majors&&(!majors.length||majors.some(v=>!Number.isInteger(v)||v<min||v>max)||!majors.includes(preferred))))throw Error('Java 兼容范围无效');
+  return {min,max,preferred,...(majors?{majors:majors.sort((a,b)=>a-b)}:{})};
+}
+function javaRequirement(meta={}){
+  if(meta.starQuill?.java!==undefined)return normalizeJavaRequirement(meta.starQuill.java);
+  if(meta.compatibleJavaMajors!==undefined){
+    const majors=meta.compatibleJavaMajors;
+    if(!Array.isArray(majors)||!majors.length||majors.some(v=>!Number.isInteger(v)||v<1))throw Error('Java 兼容版本列表无效');
+    const preferred=majors.includes(meta.javaVersion?.majorVersion)?meta.javaVersion.majorVersion:majors.includes(21)?21:Math.min(...majors);
+    return normalizeJavaRequirement({min:Math.min(...majors),max:Math.max(...majors),preferred,majors});
+  }
+  return normalizeJavaRequirement(vanillaJava(meta));
+}
+function requiredJava(meta){return javaRequirement(meta).preferred;}
+function javaCompatible(major,required){const r=normalizeJavaRequirement(required);return Number.isInteger(major)&&major>=r.min&&major<=r.max&&(!r.majors||r.majors.includes(major));}
+function describeJava(required){const r=normalizeJavaRequirement(required);return r.majors&&r.majors.length>1?r.majors.join(' / '):r.min===r.max?String(r.min):`${r.min}–${r.max}`;}
+function chooseJava(items,required,memory){const requirement=normalizeJavaRequirement(required),compatible=items.filter(j=>javaCompatible(j.major,requirement)&&j.bits===64&&/amd64|x86_64|x64/i.test(j.arch));
+  compatible.sort((a,b)=>Number(b.bundled)-Number(a.bundled)||Number(b.major===requirement.preferred)-Number(a.major===requirement.preferred)||b.major-a.major||b.version.localeCompare(a.version,undefined,{numeric:true}));
+  if(!compatible.length)throw Error(`未找到适合此版本的 64 位 Java ${describeJava(requirement)}。请安装后重新扫描，或在 Java 设置中手动选择。`);return compatible[0];}
+module.exports={memoryLimit,parseJava,inspectJava,scanJava,requiredJava,javaRequirement,normalizeJavaRequirement,javaCompatible,describeJava,chooseJava};

@@ -33,17 +33,28 @@ async function main() {
       config.files = [...config.files, {from:temp,to:'internal',filter:['project.bin']}];
     }
     await fs.writeFile(configFile,JSON.stringify(config),{mode:0o600});
+    // Use electron-builder's normal dependency traversal and ASAR integrity
+    // metadata, followed by the launcher's persistent portable engine wrapper.
+    const args = process.argv.slice(2);
     const result = spawnSync(process.execPath, [
-      require.resolve('electron-builder/cli.js'), '--win', 'portable', '--x64',
-      '--publish','never','--config',configFile,...process.argv.slice(2)
+      require.resolve('electron-builder/cli.js'), '--win', '--dir', '--x64',
+      '--publish','never','--config',configFile,...args
     ], {
       cwd:path.resolve(__dirname,'..'),stdio:'inherit',windowsHide:true,
       env:{...process.env,ELECTRON_BUILDER_NSIS_DIR:bundle,
         ELECTRON_BUILDER_NSIS_RESOURCES_DIR:process.env.ELECTRON_BUILDER_NSIS_RESOURCES_DIR || bundle}
     });
     if (result.error) throw result.error;
-    process.exitCode = result.status ?? 1;
+    if (result.status !== 0) throw new Error('Electron packaging failed: '+result.status);
+    const override = args.find(a=>/^--?c(?:onfig)?\.directories\.output=/.test(a));
+    const output = path.resolve(__dirname,'..',override ? override.slice(override.indexOf('=')+1) : config.directories.output);
+    await require('./pack-portable.cjs').packPortable({
+      directory:path.join(output,'win-unpacked'),
+      artifact:path.join(output,config.artifactName.replace('${ext}','exe')),
+      bundle,temp,project
+    });
   } finally {
+    await fs.rm(path.join(temp,'files.nsh'),{force:true});
     await fs.rm(input,{force:true});
     await fs.rm(configFile,{force:true});
     await fs.rmdir(temp);

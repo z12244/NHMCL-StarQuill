@@ -3,7 +3,19 @@ const AGENT_SHA256='9c7f4343e6c82034958ffb48c14a2cb0c85928be7283103ce17da00c6d5a
 const hash=b=>crypto.createHash('sha256').update(b).digest('hex');
 const cacheFile=(root,h)=>{if(!/^[a-f0-9]{64}$/.test(h||''))throw Error('皮肤缓存编号无效');return path.join(root,'.starquill','skins',h+'.png');};
 function textureURL(value){const u=new URL(value);if(!['http:','https:'].includes(u.protocol)||u.hostname!=='textures.minecraft.net'||u.username||u.password||u.port||!/^\/texture\/[a-f0-9]{32,64}$/i.test(u.pathname)||u.search||u.hash)throw Error('皮肤地址不是官方 Minecraft 纹理地址');u.protocol='https:';return u.href;}
-function validatePNG(b){if(b.length<33||b.length>2*1024*1024||!b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||b.toString('ascii',12,16)!=='IHDR'||b.readUInt32BE(16)!==64||![32,64].includes(b.readUInt32BE(20)))throw Error('皮肤须为官方 64×64 或 64×32 PNG 图片');return b;}
+function validatePNG(b){if(b.length<33||b.length>2*1024*1024||!b.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))||b.toString('ascii',12,16)!=='IHDR'||b.readUInt32BE(16)!==64||![32,64].includes(b.readUInt32BE(20)))throw Error('皮肤须为 64×64 或 64×32 PNG 图片');return b;}
+async function importSkin(root,file,model='default',decode){
+  if(!['default','slim'].includes(model))throw Error('请选择普通或纤细手臂');
+  if(typeof file!=='string'||!path.isAbsolute(file)||path.extname(file).toLowerCase()!=='.png')throw Error('请选择 PNG 皮肤文件');
+  const handle=await fs.open(file,'r');let bytes;
+  try{const stat=await handle.stat();if(!stat.isFile()||stat.size>2*1024*1024)throw Error('皮肤文件不能超过 2 MB');const buffer=Buffer.alloc(2*1024*1024+1);const r=await handle.read(buffer,0,buffer.length,0);bytes=validatePNG(buffer.subarray(0,r.bytesRead));}finally{await handle.close();}
+  if(decode)bytes=validatePNG(await decode(bytes));
+  if(model==='slim'&&bytes.readUInt32BE(20)!==64)throw Error('纤细手臂需要 64×64 皮肤；64×32 皮肤请选择普通手臂');
+  const digest=hash(bytes),fileName=cacheFile(root,digest);
+  await require('./content-utils.cjs').noLinks(root,fileName);
+  await fs.mkdir(path.dirname(fileName),{recursive:true});await fs.writeFile(fileName,bytes);
+  return {source:'local',hash:digest,sourceName:path.basename(file,'.png').slice(0,120),model};
+}
 async function fetchLimited(fetcher,url,max=2*1024*1024){const r=await fetcher(url,{signal:AbortSignal.timeout(20000),redirect:'error'});if(!r.ok)throw Error('读取正版皮肤失败（HTTP '+r.status+'），请确认玩家名和网络。');const chunks=[];let size=0;for await(const chunk of r.body){size+=chunk.length;if(size>max)throw Error('皮肤响应过大');chunks.push(Buffer.from(chunk));}return Buffer.concat(chunks);}
 async function lookupSkin(root,name,fetcher=fetch){
   if(typeof name!=='string'||!/^[A-Za-z0-9_]{3,16}$/.test(name))throw Error('请输入正确的正版玩家名');
@@ -41,4 +53,4 @@ async function startSkinServer(root,account,agentFile,onLog=()=>{}){
   profile={id:account.uuid,name:account.name,properties:[{name:'textures',value,signature:crypto.sign('RSA-SHA1',Buffer.from(value),privateKey).toString('base64')}]};
   return {base,metadata,profile,jvmArgs:['-javaagent:'+agentFile+'='+base,'-Dauthlibinjector.yggdrasil.prefetched='+Buffer.from(JSON.stringify(metadata)).toString('base64'),'-Dauthlibinjector.profileKey=disabled'],close:()=>{server.closeAllConnections();server.close();}};
 }
-module.exports={lookupSkin,previewSkin,readSkin,startSkinServer,textureURL,validatePNG,cacheFile,AGENT_SHA256};
+module.exports={lookupSkin,importSkin,previewSkin,readSkin,startSkinServer,textureURL,validatePNG,cacheFile,AGENT_SHA256};

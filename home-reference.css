@@ -1,0 +1,64 @@
+/* Fixed 834 × 514 layout; reference artwork and original real controls. */
+body.reference-ui #page-home{position:fixed;left:132px;top:78px;right:0;bottom:0;padding:0;overflow:hidden;z-index:1}
+body.reference-ui #page-home.active{display:block;animation:none}
+body.reference-ui #page-home .ref-home-legacy{display:none}
+body.reference-ui .ref-home-background{position:fixed;inset:0;z-index:-1;background:#f2eee7 url('assets/reference/home-background.jpg') center/100% 100% no-repeat;pointer-events:none}
+body.reference-ui .ref-home-copy{position:absolute;z-index:1;left:25px;top:10px;color:#151a19;max-width:365px;pointer-events:none}
+body.reference-ui .ref-home-copy h1{font:800 italic 43px/1.12 'STSong','SimSun',serif;letter-spacing:-2px;margin:0}
+body.reference-ui .ref-home-kicker{font-size:9px;line-height:1.5;letter-spacing:1.7px;margin:13px 0 0;white-space:nowrap;color:#222a28}
+body.reference-ui .ref-home-copy hr{border:0;border-top:1px solid #28302b;width:34px;margin:15px 0 13px}
+body.reference-ui .ref-home-story{font-size:10px;line-height:1.85;margin:0;color:#303931;max-width:224px}
+body.reference-ui .ref-home-route{position:fixed;inset:78px 0 100px 350px;z-index:0;pointer-events:none}
+body.reference-ui .ref-home-route svg{width:100%;height:100%;overflow:visible}
+body.reference-ui .ref-home-route polyline{fill:none;stroke:#f9faf7;stroke-width:2;filter:drop-shadow(0 0 1px #38433b)}
+body.reference-ui .ref-home-route circle{fill:#777f71;stroke:#fff;stroke-width:2}
+body.reference-ui .ref-home-marker{position:absolute;background:rgba(248,245,240,.45);padding:2px 7px;font:10px/1.4 'Segoe UI','Microsoft YaHei UI',sans-serif;color:#202820;text-align:center;white-space:nowrap}
+body.reference-ui .ref-marker-a{left:56%;top:11%}body.reference-ui .ref-marker-b{left:14%;top:47%}body.reference-ui .ref-marker-c{left:61%;top:73%}
+body.reference-ui .ref-home-compass{position:absolute;right:18px;top:0;font-size:12px;line-height:1.5;color:#3b443c;text-align:center}
+body.reference-ui .ref-home-news{position:fixed;left:148px;top:315px;width:328px;height:96px;display:grid;grid-template-columns:minmax(0,1fr) 79px;border:1px solid #c9c7bf;z-index:1}
+body.reference-ui .ref-home-news button{cursor:pointer;border:0;border-radius:0;text-align:left;color:#171c19;box-shadow:none}
+body.reference-ui .ref-home-news-featured{position:relative;background:linear-gradient(0deg,#111b16cc,transparent 85%),url('assets/reference/home-background.jpg') 20.7% 75.8%/334.9% 544.8% no-repeat;padding:24px 15px 9px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff!important;min-width:0;overflow:hidden}
+body.reference-ui .ref-home-news-featured span{position:absolute;top:12px;left:14px;background:#f6f2e6;color:#242d25;padding:2px 5px;font-size:8px;font-weight:500}
+body.reference-ui .ref-home-news-featured b{font:bold italic 22px/1.15 Georgia,'Times New Roman',serif;white-space:nowrap;letter-spacing:-.5px}
+body.reference-ui .ref-home-news-featured small{font-size:9px;line-height:1.5;margin-top:3px}
+body.reference-ui .ref-home-news-list{display:flex;flex-direction:column;min-width:0;background:#f5f2ea99}
+body.reference-ui .ref-home-news-item{background:transparent;border-bottom:1px solid #cecbc3!important;flex:1;min-height:0;padding:4px 8px;display:flex;flex-direction:column;justify-content:center;gap:1px}
+body.reference-ui .ref-home-news-item:last-child{border-bottom:0!important}
+body.reference-ui .ref-home-news-item b{font-size:9px;font-weight:500;line-height:1.2;white-space:nowrap}
+body.reference-ui .ref-home-news-item small{font-size:8px;line-height:1.2;color:#586159}
+body.reference-ui .ref-home-terminal{position:fixed;right:139px;bottom:102px;font-size:11px;color:#1c2521;pointer-events:none;display:flex;flex-direction:column;gap:3px}
+body.reference-ui .ref-home-terminal small{font-size:8px;color:#68716b}
+body.reference-ui .ref-home-bottom{position:fixed;bottom:0;left:132px;right:0;height:86px;border-top:1px solid #c9c7be;background:#f4f0e8e8;display:grid;grid-template-columns:minmax(190px,1.5fr) minmax(96px,.72fr) minmax(113px,.85fr) minmax(167px,1.14fr);gap:0;align-items:center;padding:15px 17px 18px 16px;color:#18211b;z-index:4}
+body.reference-ui .ref-home-version{position:relative;display:flex;align-items:center;gap:9px;min-width:0;padding-right:10px;border-right:1px solid #b9bcb2;height:40px}
+body.reference-ui .ref-home-current-label{position:absolute;top:-13px;left:0;font-size:9px;font-weight:700;margin:0;color:#17221a}
+body.reference-ui .ref-home-version-icon{width:30px;height:30px;object-fit:contain;flex:none}
+body.reference-ui .ref-home-version-copy{flex:1;min-width:0}
+body.reference-ui .ref-home-empty-version{position:absolute;inset:0;display:flex;align-items:center;justify-content:flex-start;width:100%;padding:0 10px 0 39px;background:transparent;border:0;border-radius:0;box-shadow:none;font-size:12px;font-weight:700;line-height:1.4;color:#152119;text-align:left;white-space:nowrap}
+body.reference-ui .ref-home-version.is-empty{cursor:pointer}
+body.reference-ui .ref-home-version #version{border:0;background:transparent;color:#152119;box-shadow:none;border-radius:0;padding:2px 14px 2px 0;width:100%;font-size:12px;font-weight:700;line-height:1.4;height:24px;min-height:0;color-scheme:light;text-overflow:ellipsis}
+body.reference-ui .ref-home-version #version option{background:#f8f5ed;color:#14231a}
+body.reference-ui .ref-home-version-copy>small{display:block;font-size:9px;line-height:1.5;color:#3f4b42;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.reference-ui .ref-home-version #refresh{font-size:16px;width:19px;height:25px;min-width:19px;min-height:0;padding:0;border:0;background:transparent;border-radius:0;color:#34463a;flex:none}
+body.reference-ui .ref-home-shortcut{border:0;border-right:1px solid #b9bcb2;background:transparent;box-shadow:none;border-radius:0;color:#18211b;display:flex;align-items:center;justify-content:flex-start;gap:8px;height:40px;min-width:0;padding:0 10px;text-align:left}
+body.reference-ui .ref-home-shortcut-symbol{font-size:23px;line-height:1;width:19px;flex:none;color:#26382c}
+body.reference-ui .ref-home-shortcut>span:nth-child(2){display:flex;flex:1;flex-direction:column;gap:4px;min-width:0}
+body.reference-ui .ref-home-shortcut b{font-size:11px;line-height:1.3;white-space:nowrap}
+body.reference-ui .ref-home-shortcut small{font-size:9px;line-height:1.3;color:#4c5a50;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.reference-ui .ref-home-chevron{font-size:13px;margin-left:auto;flex:none}
+body.reference-ui .ref-home-java{gap:6px;padding-left:8px;padding-right:8px}
+body.reference-ui .ref-home-java .ref-home-shortcut-symbol{font-size:20px;width:15px}
+body.reference-ui .ref-home-launch-actions{display:flex;align-items:center;justify-content:stretch;gap:5px;min-width:0;padding-left:10px}
+body.reference-ui .ref-home-launch-actions #launch{background:#1bdde2;color:#041c1b;border:0;box-shadow:none;border-radius:0;clip-path:polygon(9% 0,100% 0,91% 100%,0 100%);padding:11px 17px;gap:10px;height:48px;min-height:0;font-size:22px;font-weight:800;white-space:nowrap;min-width:0;width:100%;flex:1;justify-content:center}
+body.reference-ui .ref-home-launch-actions #launch-text{font-size:inherit;overflow:hidden;text-overflow:ellipsis;flex:0 1 auto}
+body.reference-ui .ref-home-launch-actions #launch.ref-home-long-label{font-size:15px;padding-left:13px;padding-right:14px}
+body.reference-ui .ref-home-play{font-size:13px;margin-left:0;flex:none}
+body.reference-ui .ref-home-launch-actions.is-empty{cursor:pointer}
+body.reference-ui .ref-home-launch-actions #stop{min-width:37px;flex:0 0 37px;padding:3px;font-size:10px;height:44px;color:#28392f;border:1px solid #a7b4a8;border-radius:0;background:#f7f4ec}
+body.reference-ui .ref-home-task{position:absolute;left:17px;right:19px;bottom:4px;display:flex;align-items:center;gap:6px;height:10px;font-size:8px;color:#526354;line-height:1.3;overflow:hidden}
+body.reference-ui .ref-home-task #state-dot{width:4px;height:4px;box-shadow:none;background:#359d6f}
+body.reference-ui .ref-home-task #state-text{max-width:56%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:none}
+body.reference-ui .ref-home-task #progress{margin:0;flex:1;width:70px;height:2px;background:#d1d5cc}
+body.reference-ui .ref-home-task #progress::-webkit-progress-bar{background:#d1d5cc}
+body.reference-ui .ref-home-task #progress::-webkit-progress-value{background:#13b9c0}
+body.reference-ui #page-home button:disabled{opacity:.6}
+body.reference-ui #page-home button:focus-visible,body.reference-ui #page-home select:focus-visible{outline:2px solid #00858e;outline-offset:2px}

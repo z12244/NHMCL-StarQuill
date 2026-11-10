@@ -1,6 +1,6 @@
 {
   "name": "nhmcl-starquill",
-  "version": "0.9.1-beta",
+  "version": "1.0.0",
   "private": true,
   "description": "该启动器由 StarQuill_z12244 发起的 Minecraft 启动器项目。经由南湖模作社参与维护与发行。",
   "author": "StarQuill_z12244 / 南湖模作社",
@@ -26,9 +26,9 @@
   "build": {
     "appId": "cn.starQuill.nhmcl",
     "productName": "NHMCL-StarQuill",
-    "artifactName": "NHMCL-StarQuill-beta-0.9.1-win-x64.${ext}",
+    "artifactName": "NHMCL-StarQuill-stable-1.0.0-win-x64.${ext}",
     "directories": {
-      "output": "../../outputs/NHMCL-StarQuill-beta-releases/beta-0.9.1"
+      "output": "dist"
     },
     "files": [
       "*.cjs",
@@ -60,5 +60,10 @@
   "overrides": {
     "@xmcl/unzip": "2.1.2"
   },
-  "displayVersion": "beta-0.9.1"
+  "displayVersion": "v1.0.0",
+  "releaseName": "stable-1.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/z12244/NHMCL-StarQuill.git"
+  }
 }

@@ -1,0 +1,43 @@
+{
+  "release": "stable-1.0.0",
+  "displayVersion": "v1.0.0",
+  "pass": true,
+  "automated": {
+    "passed": 145,
+    "failed": 0
+  },
+  "realChecks": [
+    "Minecraft1.21.1 graphics/audio initialization, custom JVM property and prelaunch command",
+    "Live Fabric0.20.1 / Forge52.1.21 / NeoForge21.1.265 install and dependency preparation",
+    "Final single EXE fresh directory, navigation, logs, encrypted project credential, live CurseForge JEI+dependency download with SHA1 verification",
+    "891978495-byte offline ZIP export/import including Java, dependency preparation without network",
+    "Four Java selection strategies with real JVM, settings persist after EXE restart, memory on/off beforeSpawn",
+    "Nine GTNH/Cleanroom JVM bootstrap probes"
+  ],
+  "simulatedChecks": [
+    "Third-party skin-site protocol with controlled identities, skin/cape and expired/multiple-role flows",
+    "Crash signatures and Windows event parsing, malformed archives, cancellation/rollback, download retries and hash failures"
+  ],
+  "limitations": [
+    "Real skin-site credentials were not supplied, so provider account authorization was exercised through a protocol fixture",
+    "Microsoft sign-in remains unavailable as configured because the project has no Client ID",
+    "GTNH/Cleanroom probes test bootstrap/classes/native libraries, not full mod loading or entering a world",
+    "Windows11 x64 tested locally; separate Windows10 hardware not available"
+  ],
+  "sha256": "45774ad531516ee55c43f2344b15e0c15a36e2ff834e527d3d0dde1ff922b491",
+  "hotfix": "Hide native window until new-theme bootstrap and two unthrottled animation frames complete; apply theme class in initial HTML",
+  "hotfixFirstShow": {
+    "pass": true,
+    "initiallyHidden": true,
+    "firstShow": {
+      "theme": true,
+      "shell": true,
+      "home": true,
+      "library": true,
+      "title": "Minecraft Java Launcher",
+      "page": "page-home",
+      "error": null,
+      "ready": "complete"
+    }
+  }
+}

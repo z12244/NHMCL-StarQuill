@@ -6,7 +6,7 @@ const advanced=require('./advanced.cjs');
 const {runPreLaunch,highPerformanceGpu}=require('./launch-system.cjs');
 const {Downloads,MANIFEST}=require('./downloads.cjs');
 const {layout,under,readJSON,writeJSON,resolveVersion,libraryKey}=require('./storage.cjs');
-const {inspectJava,requiredJava}=require('./java.cjs');
+const {inspectJava,requiredJava,javaRequirement,javaCompatible,describeJava}=require('./java.cjs');
 const exec=promisify(execFile);
 function allowed(rules,context={}){
   if(!rules)return true;let allow=false;const name=context.os||({win32:'windows',darwin:'osx',linux:'linux'}[process.platform]);
@@ -15,12 +15,17 @@ function allowed(rules,context={}){
     if(Object.entries(rule.features||{}).some(([key,value])=>!!context.features?.[key]!==value))continue;allow=rule.action==='allow';}return allow;
 }
 function maven(name){const [coordinate,extension='jar']=name.split('@');const [group,artifact,version,classifier]=coordinate.split(':');if(!group||!artifact||!version)throw Error('无效的 Maven 坐标：'+name);return `${group.replaceAll('.','/')}/${artifact}/${version}/${artifact}-${version}${classifier?'-'+classifier:''}.${extension}`;}
+function classifiedMaven(name,classifier){const [coordinate,extension]=name.split('@');return maven(coordinate.split(':').slice(0,3).join(':')+':'+classifier+(extension?'@'+extension:''));}
+function libraryURL(base,relative){return String(base||'https://libraries.minecraft.net/').replace(/^http:/i,'https:').replace(/\/$/,'')+'/'+relative;}
 function libraryFiles(meta,paths){const files=[],classes=[],natives=[];for(const lib of meta.libraries||[]){if(!allowed(lib.rules))continue;
     const artifact=lib.downloads?.artifact;const relative=artifact?.path||maven(lib.name);const file=under(paths.libraries,relative);
     // Legacy native-only descriptors have classifiers but no classpath artifact.
-    if(artifact||!lib.natives){files.push({...artifact,file,sha1:artifact?.sha1||lib.sha1,size:artifact?.size??lib.size,hashes:lib.sha512||lib.sha256?{sha512:lib.sha512,sha256:lib.sha256}:undefined,url:artifact?.url||(lib.url?lib.url.replace(/\/$/,'')+'/'+relative:(!lib.downloads?'https://libraries.minecraft.net/'+relative:undefined))});classes.push(file);}
-    const key=lib.natives?.windows?.replace('${arch}','64');const native=key&&lib.downloads?.classifiers?.[key];
-    if(native){const f=under(paths.libraries,native.path||maven(lib.name+':'+key));files.push({...native,file:f});natives.push({file:f,exclude:lib.extract?.exclude||['META-INF/']});}
+    if(artifact||!lib.natives){files.push({...artifact,file,sha1:artifact?.sha1||lib.sha1,size:artifact?.size??lib.size,hashes:lib.sha512||lib.sha256?{sha512:lib.sha512,sha256:lib.sha256}:undefined,url:artifact?.url||(lib.url||!lib.downloads?libraryURL(lib.url,relative):undefined)});classes.push(file);}
+    const key=lib.natives?.windows?.replace('${arch}','64');
+    // Old Forge/MultiMC profiles describe natives with Maven coordinates only.
+    // An explicit classifier map is authoritative; do not invent missing OS builds.
+    const native=key&&(lib.downloads?.classifiers?.[key]||(!lib.downloads?.classifiers?{url:libraryURL(lib.url,classifiedMaven(lib.name,key))}:undefined));
+    if(native){const f=under(paths.libraries,native.path||classifiedMaven(lib.name,key));files.push({...native,file:f});natives.push({file:f,exclude:lib.extract?.exclude||['META-INF/']});}
   }return {files,classes,natives};}
 function expand(list,variables){return (list||[]).flatMap(arg=>typeof arg==='string'?[arg]:allowed(arg.rules)?(Array.isArray(arg.value)?arg.value:[arg.value]):[]).map(arg=>{
   if(typeof arg!=='string')throw Error('版本启动参数无效');return arg.replace(/\$\{([^}]+)\}/g,(_,name)=>{if(!(name in variables))throw Error('不支持的启动参数：'+name);return String(variables[name]);});});}
@@ -70,7 +75,7 @@ class Game {
     if(loggingFile&&logging.argument)jvm.push(logging.argument.replace('${path}',loggingFile));
     const gameArgs=meta.minecraftArguments?expand(splitLegacy(meta.minecraftArguments),variables):expand(meta.arguments?.game,variables);
     if(!meta.mainClass)throw Error('版本缺少 mainClass，无法启动');
-    const major=requiredJava(meta), toolsDir=o.toolsDir||path.join(__dirname,'tools');
+    const major=Number.isInteger(o.javaMajor)?o.javaMajor:requiredJava(meta), toolsDir=o.toolsDir||path.join(__dirname,'tools');
     const custom=advanced.splitArguments(options.jvmArgs);
     const gc=advanced.collectorArgs(options.gc,major,custom);
     if(gc.length||custom.some(v=>advanced.collector.test(v)))jvm=jvm.filter(v=>!advanced.collector.test(v));
@@ -78,15 +83,19 @@ class Game {
     if(options.blockModUpdates)tuning.push('-Dfml.disableVersionCheck=true');
     const usesUnsafe=(meta.libraries||[]).some(l=>/^org\.lwjgl:lwjgl:3\.4\.[01](?:$|[@:])/.test(l.name));
     if(!options.disableUnsafeAgent && major>=25 && usesUnsafe)tuning.push('-javaagent:'+path.join(toolsDir,'lwjgl-unsafe-agent-2.0.jar'));
-    const wrapper=process.platform==='win32' && major<19 && !options.disableWrapper
+    // RFB and other custom system loaders must see the real classpath at VM startup.
+    // A -jar wrapper overrides -cp before that loader can be instantiated.
+    const customSystemLoader=[...jvm,...custom,...(o.extraJvmArgs||[])].some(v=>v.startsWith('-Djava.system.class.loader='));
+    const wrapper=process.platform==='win32' && major<19 && !options.disableWrapper && !customSystemLoader
       ? ['-jar',path.join(toolsDir,'java_launch_wrapper-1.4.4.jar')] : [];
     const args=['-Xms512M','-Xmx'+o.memory+'G',...jvm,...tuning,...custom,...(o.extraJvmArgs||[]),...wrapper,meta.mainClass,
       ...advanced.mergeGameArgs(gameArgs,advanced.splitArguments(options.gameArgs))];
     this.log(`文件准备完成：复用 ${this.downloads.stats.reused} 项，下载 ${this.downloads.stats.downloaded} 项`);
-    return {args,cwd:p.game,jar,assetIndex,paths:p,stats:{...this.downloads.stats},javaVersion:requiredJava(meta)};
+    return {args,cwd:p.game,jar,assetIndex,paths:p,stats:{...this.downloads.stats},javaVersion:major};
   }
-  async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=requiredJava(resolved.meta);if(java.major!==required)throw Error(`此版本需要 Java ${required}，当前为 Java ${java.major}。请在设置中选择对应 java.exe 或启用自动选择。`);
+  async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=javaRequirement(resolved.meta);if(!javaCompatible(java.major,required))throw Error(`此版本需要 Java ${describeJava(required)}，当前为 Java ${java.major}。请在设置中选择对应 java.exe 或启用自动选择。`);
     if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch))throw Error('此启动器需要 x64 架构的 Java，请选择 64 位 Windows Java。');
+    this.options.javaMajor=java.major;
     const prepared=await this.prepare({forLaunch:true}), o=this.options, options=advanced.effective(o.advanced);
     this.downloads.checkAbort();
     await runPreLaunch(options.preLaunch,{cwd:prepared.cwd,root:o.root,version:o.version,java:o.java,signal:o.signal,log:this.log,encoding:java.stdoutEncoding});

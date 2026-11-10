@@ -24,7 +24,7 @@ function expandQuery(query){
 class ResourceSearch{
   constructor(resources,names){this.resources=resources;this.names=names;this.cache=new Map();}
   async search(input,signal){
-    const {kind='mod',game='',loader=''}=input;if(!['mod','modpack','resourcepack','shader'].includes(kind)||!['','forge','neoforge','fabric'].includes(loader))throw Error('搜索条件无效');
+    const {kind='mod',game='',loader=''}=input;if(!['mod','modpack','resourcepack','shader'].includes(kind)||!['','forge','neoforge','fabric','cleanroom'].includes(loader))throw Error('搜索条件无效');
     const expanded=expandQuery(input.query),offset=Math.max(0,Math.floor(Number(input.offset)||0)),key=JSON.stringify([expanded.query,kind,game,loader]);
     let entry=this.cache.get(key);if(!entry||Date.now()-entry.time>5*60*1000){entry={time:Date.now(),pages:new Map(),items:[],seen:new Set(),more:true,warnings:[]};this.cache.set(key,entry);while(this.cache.size>8)this.cache.delete(this.cache.keys().next().value);}
     // A bounded page of each query/source, cached and merged, avoids constant polling.

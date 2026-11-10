@@ -1,7 +1,7 @@
 const fs=require('node:fs/promises'),native=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
-const {Transform}=require('node:stream'),{pipeline}=require('node:stream/promises');const yazl=require('yazl'),yauzl=require('yauzl');
+const {Transform,PassThrough}=require('node:stream'),{pipeline}=require('node:stream/promises');const yazl=require('yazl'),yauzl=require('yauzl');
 const {layout,under,versionName,readJSON,writeJSON,resolveVersion}=require('./storage.cjs');
-const {libraryFiles}=require('./game.cjs'),{requiredJava}=require('./java.cjs'),{hashFile,expectedHash}=require('./downloads.cjs');
+const {libraryFiles}=require('./game.cjs'),{javaRequirement,javaCompatible}=require('./java.cjs'),{hashFile,expectedHash}=require('./downloads.cjs');
 const {relativeFile,noLinks,exists}=require('./content-utils.cjs'),{instanceOptions,readInstanceConfig}=require('./instance-config.cjs');
 const FORMAT='NHMCL-StarQuill-offline',MAX_FILES=100000,MAX_TOTAL=64*1024**3,MAX_FILE=8*1024**3;
 const abort=signal=>{if(signal?.aborted)throw Error('已取消离线版本包操作');};
@@ -33,8 +33,8 @@ class OfflinePacks{
  constructor({root,settings={},chooseJava,onStatus=()=>{}}){Object.assign(this,{root,settings,chooseJava,onStatus});this.lastProgress=0;}
  progress(text,percent){if(Date.now()-this.lastProgress>120||percent===100){this.lastProgress=Date.now();this.onStatus(text,percent);}}
  async export(id,destination,signal){
-  const required=await requiredFiles(this.root,id),options=await instanceOptions(this.root,id,this.settings,required.raw),config=await readInstanceConfig(this.root,id),runtime=await this.chooseJava(id,requiredJava(required.meta),options);
-  if(runtime.major!==requiredJava(required.meta)||runtime.bits!==64||!/amd64|x86_64|x64/i.test(runtime.arch||''))throw Error('请先选择与游戏匹配的 Windows x64 Java，再导出离线包');
+  const required=await requiredFiles(this.root,id),options=await instanceOptions(this.root,id,this.settings,required.raw),config=await readInstanceConfig(this.root,id),requirement=javaRequirement(required.meta),runtime=await this.chooseJava(id,requirement,options);
+  if(!javaCompatible(runtime.major,requirement)||runtime.bits!==64||!/amd64|x86_64|x64/i.test(runtime.arch||''))throw Error('请先选择与游戏匹配的 Windows x64 Java，再导出离线包');
   const javaHome=path.resolve(runtime.home||path.dirname(path.dirname(runtime.path)));if(!await exists(path.join(javaHome,'bin','java.exe')))throw Error('Java 目录不完整，不能导出运行环境');
   const game=layout(this.root,id,options.isolate).game,items=new Map(),expect=new Map(required.files.map(f=>[path.resolve(f.file).toLowerCase(),f]));let bytes=0;
   const add=async(file,name)=>{cleanPath(name);const key=name.toLowerCase();if(items.has(key)){if(path.resolve(items.get(key).file)!==path.resolve(file))throw Error('版本包存在同名路径');return;}const stat=await fs.stat(file);if(stat.size>MAX_FILE||(bytes+=stat.size)>MAX_TOTAL||items.size>=MAX_FILES)throw Error('离线包超出 64 GB / 100000 文件的上限');items.set(key,{file,path:name,size:stat.size,mtime:stat.mtimeMs,expected:expect.get(path.resolve(file).toLowerCase())});};
@@ -59,7 +59,7 @@ class OfflinePacks{
  async inspect(file,signal){const inspected=await inspectArchive(file,signal);return {...inspected,file};}
  async import(file,id,signal){
   versionName(id);const destination=layout(this.root,id).version;await noLinks(this.root,destination);if(await exists(destination))throw Error('该版本名称已存在，请换一个名称');
-  const {manifest}=await this.inspect(file,signal),token=crypto.randomUUID(),base=path.join(this.root,'.starquill','offline-import'),stage=path.join(base,token),payload=path.join(stage,'payload'),game=path.join(stage,'game');await noLinks(this.root,stage);await fs.mkdir(payload,{recursive:true});const published=[];
+  const {manifest}=await this.inspect(file,signal),token=crypto.randomUUID(),base=path.join(this.root,'.starquill','offline-import'),stage=path.join(base,token),payload=path.join(stage,'payload'),game=path.join(stage,'game');await noLinks(this.root,stage);await fs.mkdir(payload,{recursive:true});const published=[];let publishedRuntime;
   try{const entries=new Map(manifest.files.map(f=>[f.path,f])),total=manifest.files.reduce((s,f)=>s+f.size,0);let bytes=0,extracted=0;
    await visitArchive(file,async(zip,entry)=>{abort(signal);if(entry.fileName==='manifest.json')return;const item=entries.get(entry.fileName);if(!item)throw Error('压缩包文件不在清单中');const target=under(payload,item.path);await fs.mkdir(path.dirname(target),{recursive:true});let read=0;const hash=crypto.createHash('sha256');const meter=new Transform({transform:(chunk,encoding,cb)=>{read+=chunk.length;if(read>item.size)return cb(Error('文件解压长度超出清单'));hash.update(chunk);this.progress('导入离线版本包 · '+item.path,total?(bytes+read)/total*85:0);cb(null,chunk);}});await pipeline(await openStream(zip,entry),meter,native.createWriteStream(target,{flags:'wx'}),{signal});if(read!==item.size||hash.digest('hex')!==item.sha256)throw Error('离线包文件校验失败：'+item.path);bytes+=read;extracted++;},signal);if(extracted!==entries.size)throw Error('导入时压缩包文件数量发生变化');
    const mapping=new Map(manifest.versions.map((v,i)=>[v.id,v.id===manifest.id?id:'NHMCL-依赖-'+token.slice(0,8)+'-'+i]));for(const j of manifest.jars)if(!mapping.has(j.id))mapping.set(j.id,'NHMCL-依赖-'+token.slice(0,8)+'-jar'+mapping.size);
@@ -70,20 +70,26 @@ class OfflinePacks{
    for(const common of ['libraries','assets'])if(await exists(path.join(payload,'shared',common))){await fs.mkdir(path.dirname(path.join(game,common)),{recursive:true});await fs.rename(path.join(payload,'shared',common),path.join(game,common));}
    const runtimeId='starquill-pack-'+token.replaceAll('-','').slice(0,12),runtimeDir=path.join(game,'runtime',runtimeId);await fs.mkdir(path.dirname(runtimeDir),{recursive:true});await fs.rename(path.join(payload,'runtime'),runtimeDir);
    await writeJSON(path.join(leaf,'.starquill-settings.json'),{schema:1,advanced:require('./advanced.cjs').portableOverrides(manifest.settings?.advanced),displayName:manifest.settings?.displayName||id,memory:manifest.settings?.memory||null,javaMode:'auto',java:'',isolate:'isolated',portableJava:`runtime/${runtimeId}/bin/java.exe`});
-   const needed=await requiredFiles(game,id);if(requiredJava(needed.meta)!==manifest.java.major)throw Error('包内 Java 与游戏要求不一致');
+   const needed=await requiredFiles(game,id);if(!javaCompatible(manifest.java.major,javaRequirement(needed.meta)))throw Error('包内 Java 与游戏要求不一致');
    const common=[];for(const folder of ['libraries','assets'])if(await exists(path.join(game,folder)))await walk(game,path.join(game,folder),folder,async(source,relative)=>{const target=under(this.root,relative);await noLinks(this.root,target);if(await exists(target)){if(await hashFile(source,'sha256')!==await hashFile(target,'sha256'))throw Error('已有公共文件不同，未覆盖：'+relative);}else common.push({source,target});},()=>false,signal);
    for(const item of common){abort(signal);await fs.mkdir(path.dirname(item.target),{recursive:true});try{try{await fs.link(item.source,item.target);}catch(e){if(!['EPERM','ENOTSUP','EXDEV','EINVAL'].includes(e.code))throw e;await fs.copyFile(item.source,item.target,native.constants.COPYFILE_EXCL);}}catch(e){if(e.code!=='EEXIST')throw e;if(await hashFile(item.source,'sha256')!==await hashFile(item.target,'sha256'))throw Error('公共文件在导入时改变');}}
    // Publish Java as one complete directory. A startup scan must never see a
    // half-copied runtime or lock DLL hardlinks still owned by the staging tree.
-   const runtimeTarget=path.join(this.root,'runtime',runtimeId);await noLinks(this.root,runtimeTarget);if(await exists(runtimeTarget))throw Error('离线 Java 目录冲突');await fs.mkdir(path.dirname(runtimeTarget),{recursive:true});await fs.rename(runtimeDir,runtimeTarget);
+   const runtimeTarget=path.join(this.root,'runtime',runtimeId);await noLinks(this.root,runtimeTarget);if(await exists(runtimeTarget))throw Error('离线 Java 目录冲突');await fs.mkdir(path.dirname(runtimeTarget),{recursive:true});await fs.rename(runtimeDir,runtimeTarget);publishedRuntime=runtimeTarget;
    for(const name of [...mapping.values()].filter(n=>n!==id).concat(id)){abort(signal);const source=layout(game,name).version,target=layout(this.root,name).version;await noLinks(this.root,target);if(await exists(target))throw Error('版本目录被占用，请重新导入');await fs.mkdir(path.dirname(target),{recursive:true});await fs.rename(source,target);published.push(target);}
    this.progress('离线版本包已导入，可使用离线账号启动',100);return id;
-  }catch(e){for(const dir of published.reverse())await cleanStage(path.join(this.root,'versions'),dir);throw e;}
+  }catch(e){for(const dir of published.reverse())await cleanStage(path.join(this.root,'versions'),dir);if(publishedRuntime)await cleanStage(path.join(this.root,'runtime'),publishedRuntime);throw e;}
   finally{await cleanStage(base,stage);}
  }
 }
 function openZip(file){return new Promise((resolve,reject)=>yauzl.open(file,{lazyEntries:true,autoClose:false,strictFileNames:true},(err,zip)=>err?reject(err):resolve(zip)));}
-function openStream(zip,entry){return new Promise((resolve,reject)=>zip.openReadStream(entry,(e,s)=>e?reject(e):resolve(s)));}
+function openStream(zip,entry){return new Promise((resolve,reject)=>zip.openReadStream(entry,(error,source)=>{
+ if(error){reject(error);return;}
+ // yauzl 2.x destroy() does not emit close, so pipeline otherwise waits
+ // indefinitely when cancellation interrupts a fully buffered small entry.
+ const input=new PassThrough({destroy(error,callback){source.unpipe(this);source.destroy();callback(error);}});
+ source.once('error',error=>input.destroy(error));source.pipe(input);resolve(input);
+}));}
 async function visitArchive(file,fn,signal){const zip=await openZip(file);try{await new Promise((resolve,reject)=>{let settled=false;const fail=e=>{if(!settled){settled=true;reject(e);}};zip.on('error',fail);zip.on('end',()=>{if(!settled){settled=true;resolve();}});zip.on('entry',entry=>{Promise.resolve().then(()=>{abort(signal);return fn(zip,entry);}).then(()=>{if(!settled)zip.readEntry();},fail);});zip.readEntry();});}finally{zip.close();}}
 async function inspectArchive(file,signal){let manifest,bytes=0;const seen=new Set(),headers=new Map();await visitArchive(file,async(zip,entry)=>{const name=cleanPath(entry.fileName);if(seen.has(name.toLowerCase())||entry.fileName.endsWith('/')||entry.generalPurposeBitFlag&1||(entry.externalFileAttributes>>>16&0xf000)===0xa000)throw Error('版本包包含重复路径、链接或不支持的条目');seen.add(name.toLowerCase());if(seen.size>MAX_FILES+1||entry.uncompressedSize>MAX_FILE||(bytes+=entry.uncompressedSize)>MAX_TOTAL+32*1024**2)throw Error('版本包解压大小超出限制');headers.set(name,entry.uncompressedSize);if(name==='manifest.json'){if(entry.uncompressedSize>32*1024**2)throw Error('版本包清单过大');const chunks=[];for await(const chunk of await openStream(zip,entry))chunks.push(chunk);manifest=JSON.parse(Buffer.concat(chunks));}else if(!/^(?:instance\/|profiles\/\d+\.json$|clients\/\d+\.jar$|shared\/(?:libraries|assets)\/|runtime\/)/.test(name))throw Error('版本包包含未知内容目录');},signal);
  if(!manifest||manifest.format!==FORMAT||manifest.formatVersion!==1||!Array.isArray(manifest.files)||!Array.isArray(manifest.versions)||!Array.isArray(manifest.jars))throw Error('这不是星翎离线版本包，请选择由「导出离线版本包」生成的 ZIP');versionName(manifest.id);versionName(manifest.game);if(manifest.versions.length<1||manifest.versions.length>17||manifest.jars.length>18)throw Error('包内版本继承信息无效');const ids=new Set();for(const v of manifest.versions){versionName(v.id);if(ids.has(v.id)||!/^profiles\/\d+\.json$/.test(v.profile))throw Error('版本包配置无效');ids.add(v.id);}if(!ids.has(manifest.id)||manifest.versions.at(-1).id!==manifest.id)throw Error('版本包主版本无效');for(const j of manifest.jars){versionName(j.id);if(!/^clients\/\d+\.jar$/.test(j.path))throw Error('客户端路径无效');}

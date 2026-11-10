@@ -19,7 +19,7 @@ async function markStandalone(root,id) {
 async function scan(root) {
   let dirs;
   try { dirs=await fs.readdir(path.join(root,'versions'),{withFileTypes:true}); } catch { return []; }
-  const versions=[], packs=[];
+  const versions=[], packs=[],packParents=new Map();
   for(const dir of dirs) {
     if(!dir.isDirectory())continue;
     try {
@@ -28,12 +28,12 @@ async function scan(root) {
       let displayName;
       try { displayName=(await readJSON(path.join(p.version,'.starquill-settings.json'))).displayName; } catch {}
       versions.push({id:dir.name,displayName,type:json.type||'custom',inheritsFrom:json.inheritsFrom||null,ready:true,mainClass:json.mainClass||null});
-      if(json.inheritsFrom)try { await fs.access(path.join(p.version,'starquill-pack.json')); packs.push(dir.name); } catch {}
+      if(json.inheritsFrom||json.starQuill?.base)try { await fs.access(path.join(p.version,'starquill-pack.json')); packs.push(dir.name);packParents.set(dir.name,json.inheritsFrom||json.starQuill.base); } catch {}
     }catch(error){versions.push({id:dir.name,ready:false,error:error.message});}
   }
   const byId=new Map(versions.map(v=>[v.id,v])),hidden=new Set();
   for(const id of packs) {
-    let parent=byId.get(id)?.inheritsFrom;
+    let parent=packParents.get(id);
     while(byId.has(parent)&&!hidden.has(parent)) {
       hidden.add(parent);
       parent=byId.get(parent).inheritsFrom;

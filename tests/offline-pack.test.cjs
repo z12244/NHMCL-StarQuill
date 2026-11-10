@@ -11,4 +11,29 @@ test('offline archives reject saves paths and malformed format',async t=>{const 
 test('offline export can cancel without publishing or leaving a partial archive',async t=>{const f=await fixture(t),controller=new AbortController();f.service.onStatus=()=>controller.abort();await assert.rejects(f.service.export('Adventure',f.zip,controller.signal));assert.ok(!(await fs.readdir(f.base)).some(n=>n.endsWith('.part')||n==='test.nhmcl.zip'));});
 test('offline export includes dynamically discovered NeoForge processor outputs outside profile libraries',async t=>{const f=await fixture(t),file=layout(f.root,'Adventure').json,raw=await readJSON(file);raw.arguments={game:['--fml.neoForgeVersion','21.1.265']};await writeJSON(file,raw);await f.put('libraries/net/neoforged/neoforge/21.1.265/neoforge-21.1.265-client.jar','patched-client');await f.put('libraries/net/neoforged/neoforge/21.1.265/neoforge-21.1.265-universal.jar','universal');await f.put('libraries/net/minecraft/client/1.21.1-20240808.144430/client-extra.jar','extra');await f.service.export('Adventure',f.zip);const names=(await inspectArchive(f.zip)).manifest.files.map(f=>f.path);assert.ok(names.includes('shared/libraries/net/neoforged/neoforge/21.1.265/neoforge-21.1.265-client.jar'));assert.ok(names.includes('shared/libraries/net/minecraft/client/1.21.1-20240808.144430/client-extra.jar'));});
 test('offline import falls back to copying on filesystems without hardlink support',async t=>{const f=await fixture(t);await f.service.export('Adventure',f.zip);const link=fs.link;fs.link=async()=>{const error=Error('unsupported filesystem');error.code='ENOTSUP';throw error;};try{await new OfflinePacks({root:f.target}).import(f.zip,'Portable');assert.equal(await fs.readFile(path.join(f.target,'libraries/example/lib/1/lib-1.jar'),'utf8'),'lib');}finally{fs.link=link;}});
+test('offline pack preserves Java compatibility declarations and accepts a compatible runtime different from the preferred major',async t=>{
+ const f=await fixture(t),file=layout(f.root,'Adventure').json,raw=await readJSON(file);raw.starQuill.java={min:17,max:26,preferred:17,majors:[17,21,25,26]};await writeJSON(file,raw);
+ let requested;f.service.chooseJava=async(id,requirement)=>{requested=requirement;return f.runtime;};await f.service.export('Adventure',f.zip);
+ assert.equal(requested.preferred,17);assert.equal((await inspectArchive(f.zip)).manifest.java.major,21);
+ await new OfflinePacks({root:f.target}).import(f.zip,'Modern portable');const restored=await resolveVersion(f.target,'Modern portable');assert.deepEqual(restored.raw.starQuill.java,raw.starQuill.java);
+});
+
+test('offline import cancellation during a tiny compressed entry settles and removes staging',{timeout:5000},async t=>{
+ const f=await fixture(t);await f.service.export('Adventure',f.zip);const controller=new AbortController();let updates=0;
+ const importer=new OfflinePacks({root:f.target,onStatus(){updates++;controller.abort();}});
+ await assert.rejects(importer.import(f.zip,'Canceled',controller.signal),/取消|abort/i);assert.equal(updates,1);
+ await assert.rejects(fs.access(layout(f.target,'Canceled').version),{code:'ENOENT'});
+ assert.deepEqual(await fs.readdir(path.join(f.target,'.starquill','offline-import')),[]);
+ assert.equal(await fs.readFile(path.join(f.root,'versions/Adventure/config/example.json'),'utf8'),'{"setting":true}');
+});
+
+test('cancellation after runtime publication rolls back only the new Java directory',async t=>{
+ const f=await fixture(t);await f.service.export('Adventure',f.zip);const controller=new AbortController(),runtimeRoot=path.join(f.target,'runtime'),existing=path.join(runtimeRoot,'existing-java');
+ await fs.mkdir(existing,{recursive:true});await fs.writeFile(path.join(existing,'keep.txt'),'belongs to another version');
+ const rename=fs.rename;let published=false;
+ fs.rename=async(source,target)=>{const result=await rename(source,target);if(path.dirname(target)===runtimeRoot){published=true;controller.abort();}return result;};
+ try{await assert.rejects(new OfflinePacks({root:f.target}).import(f.zip,'Canceled',controller.signal),/取消|abort/i);}finally{fs.rename=rename;}
+ assert.equal(published,true);assert.deepEqual(await fs.readdir(runtimeRoot),['existing-java']);assert.equal(await fs.readFile(path.join(existing,'keep.txt'),'utf8'),'belongs to another version');
+ await assert.rejects(fs.access(layout(f.target,'Canceled').version),{code:'ENOENT'});assert.deepEqual(await fs.readdir(path.join(f.target,'.starquill','offline-import')),[]);
+});
 

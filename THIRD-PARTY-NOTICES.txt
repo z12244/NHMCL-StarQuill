@@ -1,4 +1,4 @@
-NHMCL-StarQuill beta-0.9.1
+NHMCL-StarQuill stable-1.0.0 (v1.0.0)
 
 smol-toml 1.9.1 (BSD-3-Clause)
 Copyright (c) Squirrel Chat et al., All rights reserved.

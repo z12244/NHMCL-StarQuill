@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const Zip=require('adm-zip');
-const {memorySnapshot,trimScript}=require('../memory.cjs');
+const {memorySnapshot,optimizeMemory}=require('../memory.cjs');
 const {redact}=require('../core.cjs');
 const {logBuffer,analyzeCrash,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latestCrash}=require('../crash-reports.cjs');
 
@@ -11,7 +11,12 @@ test('memory snapshot reads live values and clamps available bytes',()=>{
   system.freemem=()=>2*1024**3;assert.equal(memorySnapshot(system).used,14*1024**3);
   system.freemem=()=>20*1024**3;assert.equal(memorySnapshot(system).available,16*1024**3);
 });
-test('removed memory optimization never spawns scripts',async()=>{assert.equal((await require('../memory.cjs').optimizeMemory([])).supported,false);});
+test('pre-launch memory cleanup runs in the launcher and respects cancellation',async()=>{
+  const result=await optimizeMemory();
+  assert.ok(result.heapBefore>0&&result.heapAfter>0);
+  assert.equal(result.pageCacheCleared,false);
+  await assert.rejects(optimizeMemory(undefined,AbortSignal.abort()),{name:'AbortError'});
+});
 test('manual, successful and unexpected exits are distinguished',()=>{
   assert.equal(unexpectedExit(0,null,false),false);
   assert.equal(unexpectedExit(1,null,true,1),false);
