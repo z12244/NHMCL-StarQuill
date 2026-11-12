@@ -8,6 +8,8 @@
 
 [下载最新版](https://github.com/z12244/NHMCL-StarQuill/releases/latest) · [全部版本](https://github.com/z12244/NHMCL-StarQuill/releases) · [正式版测试范围](docs/STABLE-1.0.0-TESTS.json)
 
+> 🐛 **使用遇到问题？** 请先看 [使用文档](https://github.com/z12244/NHMCL-StarQuill#使用)，仍未解决就 [提交反馈](https://github.com/z12244/NHMCL-StarQuill/issues/new/choose)（Bug / 功能建议 / 使用求助）。
+
 ## 使用
 
 把单文件 EXE 放到准备用来存放游戏的文件夹中打开。首次可创建离线账号或选择皮肤站登录。游戏保存在同目录的 .minecraft，账号和设置保存在 .starquill-profile。升级时退出旧程序，将新 EXE 放回原目录。
