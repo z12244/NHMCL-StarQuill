@@ -1,0 +1,49 @@
+name: "❓ 使用问题 / 求助"
+description: "某功能不知道怎么用、配置不清楚、报错看不懂"
+title: "[求助] 一句话描述问题"
+labels: ["求助"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        使用类问题请先查 README 与 docs 目录下的说明文档，多数都有答案：
+
+        - 正版登录：`MICROSOFT-LOGIN.md` / `MICROSOFT-SETUP.md`
+        - 离线版本包：`OFFLINE-PACK.md`
+        - 皮肤站：`SKIN-SITE-LOGIN.md`
+        - 资源工坊：`RESOURCE-WORKSHOP.md`
+        - Java / 内存 / 崩溃：`MEMORY-AND-CRASH.md` / `VERSION-SETTINGS.md`
+        - GTNH / Cleanroom：`GTNH-AND-CLEANROOM.md`
+
+  - type: input
+    id: version
+    attributes:
+      label: "启动器版本"
+      placeholder: "例如 v1.0.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: question
+    attributes:
+      label: "问题描述"
+      description: "你想做什么？卡在哪一步？"
+      placeholder: "例如：导入 CurseForge 整合包时报错，提示 ……"
+    validations:
+      required: true
+
+  - type: textarea
+    id: tried
+    attributes:
+      label: "已经尝试过的操作"
+      description: "试过哪些方法、看过哪些文档？"
+    validations:
+      required: false
+
+  - type: textarea
+    id: attachment
+    attributes:
+      label: "截图 / 日志"
+      description: "附上截图或日志，会更快得到回答。"
+    validations:
+      required: false
