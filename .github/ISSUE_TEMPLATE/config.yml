@@ -1,0 +1,11 @@
+# 「New issue」模板选择页的全局配置
+# 设为 false 后，用户必须从下面的表单模板里选一个（避免裸发无格式 issue）
+blank_issues_enabled: false
+
+contact_links:
+  - name: "📖 使用文档（README / docs）"
+    url: "https://github.com/z12244/NHMCL-StarQuill"
+    about: "先看仓库首页 README 和 docs 目录里的说明，很多使用问题已有答案。"
+  - name: "🚀 下载最新版"
+    url: "https://github.com/z12244/NHMCL-StarQuill/releases/latest"
+    about: "反馈前请先更新到最新版，问题可能已经被修复。"
