@@ -47,4 +47,4 @@ npm run dist -- --config.directories.output=dist
 
 构建可通过 NHMCL_CURSEFORGE_API_KEY 注入项目凭据。发行构建将凭据加密保存，客户端加密不能防止逆向提取。账号、令牌、个人设置与游戏目录不纳入源码仓库。
 
-[整合包说明](GTNH-AND-CLEANROOM.md) · [Java、内存与崩溃诊断](MEMORY-AND-CRASH.md) · [离线包](OFFLINE-PACK.md) · [历史 Beta 目录](old-versions/) · [第三方组件许可](THIRD-PARTY-NOTICES.txt)
+[整合包说明](docs/GTNH-AND-CLEANROOM.md) · [Java、内存与崩溃诊断](docs/MEMORY-AND-CRASH.md) · [离线包](docs/OFFLINE-PACK.md) · [历史 Beta 目录](old-versions/) · [第三方组件许可](THIRD-PARTY-NOTICES.txt)
