@@ -1,0 +1,100 @@
+name: "🐛 Bug 报告"
+description: "启动器异常、崩溃、报错，或某个功能不工作"
+title: "[Bug] 一句话描述问题"
+labels: ["缺陷"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈！信息填得越完整，越容易被定位和修复。
+
+        提交前请确认：
+        1. 已更新到[最新版](https://github.com/z12244/NHMCL-StarQuill/releases/latest)并复现；
+        2. 问题不是某个模组 / 整合包自身导致的（可用原版或其他启动器交叉验证）。
+
+  - type: input
+    id: version
+    attributes:
+      label: "启动器版本"
+      description: "在「设置 / 关于」里能看到版本号。"
+      placeholder: "例如 v1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: os
+    attributes:
+      label: "操作系统"
+      options:
+        - "Windows 11 x64"
+        - "Windows 10 x64"
+        - "其他（请在下方说明）"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: "问题所属功能"
+      description: "可多选，选最接近的。"
+      multiple: true
+      options:
+        - "启动 / 打开启动器"
+        - "原版安装"
+        - "加载器安装（Fabric / Forge / NeoForge）"
+        - "整合包导入（CurseForge / Modrinth / MultiMC / Prism）"
+        - "资源下载（模组 / 整合包 / 资源包 / 光影）"
+        - "皮肤站登录 / 皮肤导入导出"
+        - "离线版本包"
+        - "模组 / 资源包 / 光影管理"
+        - "存档导入导出"
+        - "崩溃 / 内存"
+        - "Java 运行时（内置 Java 21 / 外部 Java）"
+        - "正版登录（Microsoft）"
+        - "其他"
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: "复现步骤"
+      description: "按顺序说明怎么操作会触发问题。"
+      placeholder: |
+        1. 打开启动器
+        2. 点击 ……
+        3. 出现 ……
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "期望行为"
+      description: "你期望发生什么？"
+    validations:
+      required: false
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: "实际行为"
+      description: "实际发生了什么？把报错文字、弹窗内容原样贴出来。"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "日志 / 崩溃报告 / 截图"
+      description: "直接粘贴日志或 crash 报告内容，或把文件 / 截图拖进来上传。"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: "提交前确认"
+      options:
+        - label: "我已更新到最新版，并确认该问题仍能复现"
+          required: true
