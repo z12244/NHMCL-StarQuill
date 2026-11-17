@@ -2,13 +2,13 @@
   const fields = [
     {key:'jvmArgs', label:'Java 虚拟机参数', type:'textarea', hint:'参数以空格分隔。含空格的路径或值请用双引号括起。'},
     {key:'gameArgs', label:'游戏参数', type:'text', example:'--width 1280 --height 720'},
-    {key:'preLaunch', label:'启动前执行命令', type:'text', hint:'在游戏目录中执行，成功后启动 Java。可使用 %STARQUILL_GAME_DIR% 和 %STARQUILL_JAVA%。'},
+    {key:'preLaunch', label:'启动前执行命令', type:'text', hint:'在游戏目录中执行，成功后启动 Java。可读取 STARQUILL_GAME_DIR 和 STARQUILL_JAVA 环境变量。'},
     {key:'gc', label:'内存管理', type:'select', options:[
       ['default','由 Java 自动选择'], ['g1','调优 G1GC'], ['parallel','并行 GC'], ['zgc','ZGC（Java 15+）'], ['serial','串行 GC']
     ]},
     {key:'disableWrapper', label:'禁用 Java Launch Wrapper', type:'flag', hint:'适用于 Windows 上 Java 8–18 的命令行编码兼容。'},
     {key:'disableUnsafeAgent', label:'禁用 LWJGL Unsafe Agent', type:'flag', hint:'适用于 Java 25+ 搭配 LWJGL 3.4.0 或 3.4.1。'},
-    {key:'highPerformance', label:'优先使用高性能显卡', type:'flag', hint:'启动时向 Windows 请求高性能 GPU，游戏退出后还原原有偏好。'},
+    {key:'highPerformance', label:'优先使用高性能显卡', type:'flag', hint:'为本次游戏请求高性能 GPU。'},
     {key:'blockModUpdates', label:'禁止更新已有模组', type:'flag', hint:'阻止资源工坊替换已有模组，仍可安装新模组。'},
     {key:'skipFileCheck', label:'跳过启动前的本地文件校验', type:'flag', hint:'复用已有文件，缺少的文件仍会补全并校验。'}
   ];
@@ -24,6 +24,7 @@
     const panel = panels[scope] = {items:[], global:{}, locked:false};
     const instance = scope === 'instance';
     for (const field of fields) {
+      if (field.key==='disableWrapper' && navigator.platform.startsWith('Linux')) continue;
       if(scope==='global'&&field.key==='gc')parent.append(document.getElementById('advanced-scanner'));
       const row = element('div','advanced-row'), name = element('label','advanced-name',field.label);
       const box = element('div','advanced-value'), id = scope+'-advanced-'+field.key;

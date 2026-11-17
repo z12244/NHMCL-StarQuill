@@ -5,6 +5,36 @@ const modern={min:17,max:26,preferred:21,majors:[17,21,25,26]};
 const runtime=(major,bundled=false)=>({major,bundled,version:major+'.0.1',bits:64,arch:'amd64',path:'unused'});
 async function tree(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-gtnh-engine-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));return root;}
 async function profile(root,id,extra={}){await writeJSON(layout(root,id).json,{id,mainClass:'example.Main',libraries:[],...extra});await fs.writeFile(layout(root,id).jar,'fixture-client');}
+test('1.7.10 pack staging repairs missing or corrupt official logging XML without contacting the retired mirror', async t=>{
+  const root=await tree(t), id='1.7.10', sha1='50c9cc4af6d853d9fc137c84bcd153e2bd3a9a82';
+  const file={id:'client-1.7.xml',sha1,size:966,url:'https://launcher.mojang.com/v1/objects/'+sha1+'/client-1.7.xml'};
+  const logging={client:{file,argument:'-Dlog4j.configurationFile=${path}'}};
+  await profile(root,id,{logging});
+  const xml=path.join(layout(root,id).assets,'log_configs',file.id);
+  const calls=[];
+  const fetcher=async url=>{calls.push(url);return new Response(null,{status:404});};
+  const loaders=new Loaders({root,fetcher,chooseJava:async()=>runtime(21)});
+  const stage=await loaders.createStage(id,'GTNH',undefined,modern);
+  try {
+    assert.equal(await require('../downloads.cjs').hashFile(xml),sha1);
+    await fs.writeFile(xml,Buffer.alloc(file.size,'x'));
+    const prepared=await loaders.gameEngine(stage.root,id).prepare();
+    assert.ok(prepared.args.includes('-Dlog4j.configurationFile='+xml));
+    assert.equal(await require('../downloads.cjs').hashFile(xml),sha1);
+    assert.deepEqual(calls,[]);
+  } finally {await loaders.cleanStage(stage.root);}
+});
+test('same-name custom logging configs still use the manifest download and checksum',async t=>{
+  const root=await tree(t), id='Custom pack', bytes='custom configuration';
+  const sha1=require('node:crypto').createHash('sha1').update(bytes).digest('hex');
+  const url='https://example.org/logging/client-1.7.xml';
+  await profile(root,id,{logging:{client:{file:{id:'client-1.7.xml',sha1,size:bytes.length,url}}}});
+  const calls=[];
+  const game=new Game({root,version:id,name:'Tester',memory:1,fetcher:async source=>{calls.push(source);return new Response(bytes);}});
+  await game.prepare();
+  assert.deepEqual(calls,[url]);
+  assert.equal(await fs.readFile(path.join(layout(root,id).assets,'log_configs','client-1.7.xml'),'utf8'),bytes);
+});
 test('pack Java declarations allow supported modern runtimes while vanilla requirements remain exact',()=>{
   const meta={id:'GTNH',javaVersion:{majorVersion:17},starQuill:{java:modern}};
   assert.deepEqual(javaRequirement(meta),modern);assert.equal(requiredJava(meta),21);
@@ -26,7 +56,7 @@ test('legacy native Maven descriptors resolve Windows classifiers without pollut
     {name:'net.java.jinput:jinput-platform:2.0.5',url:'http://libraries.minecraft.net/',natives:{windows:'natives-windows'},extract:{exclude:['META-INF/']}},
     {name:'example:native:1:other@zip',url:'https://cdn.example.com/maven',natives:{windows:'natives-windows-${arch}'}},
     {name:'example:linux:1',natives:{windows:'natives-windows'},downloads:{classifiers:{'natives-linux':{url:'https://example.com/linux.jar'}}}}
-  ]},p);
+  ]},p,{os:'windows'});
   assert.equal(result.classes.length,0);assert.equal(result.natives.length,2);
   assert.equal(result.files[0].url,'https://libraries.minecraft.net/net/java/jinput/jinput-platform/2.0.5/jinput-platform-2.0.5-natives-windows.jar');
   assert.equal(result.files[1].url,'https://cdn.example.com/maven/example/native/1/native-1-natives-windows-64.zip');

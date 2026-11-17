@@ -13,14 +13,14 @@ async function runPreLaunch(command, {cwd, root, version, java, signal, log, enc
   const windows = process.platform === 'win32';
   const child = spawn(windows ? systemTool('cmd.exe') : '/bin/sh',
     windows ? ['/d', '/s', '/c', '"' + command + '"'] : ['-c', command], {
-      cwd, windowsHide: true, windowsVerbatimArguments: windows, stdio: ['ignore', 'pipe', 'pipe'],
+      cwd, detached: !windows, windowsHide: true, windowsVerbatimArguments: windows, stdio: ['ignore', 'pipe', 'pipe'],
       env: {...process.env, STARQUILL_GAME_DIR: cwd, STARQUILL_ROOT: root, STARQUILL_VERSION: version, STARQUILL_JAVA: java}
     });
   const closed = once(child, 'close');
   const cancel = () => {
     if (!child.pid || child.exitCode !== null || child.signalCode) return;
     if (windows) exec(systemTool('taskkill.exe'), ['/pid', String(child.pid), '/t', '/f'], {windowsHide:true}).catch(() => child.kill());
-    else child.kill();
+    else {try {process.kill(-child.pid,'SIGTERM');} catch(error) {if(error.code!=='ESRCH')child.kill();}}
   };
   signal?.addEventListener('abort', cancel, {once:true});
   if (signal?.aborted) cancel();
@@ -34,6 +34,16 @@ async function runPreLaunch(command, {cwd, root, version, java, signal, log, enc
   } finally { signal?.removeEventListener('abort', cancel); }
 }
 
+async function linuxGameEnv(highPerformance) {
+  if (process.platform!=='linux' || !highPerformance) return process.env;
+  const fs=require('node:fs/promises');
+  const cards=await fs.readdir('/sys/class/drm').catch(()=>[]);
+  if (cards.filter(card=>/^card\d+$/.test(card)).length<2) return process.env;
+  const env={...process.env,DRI_PRIME:'1'};
+  const nvidia=await fs.stat('/proc/driver/nvidia/gpus').catch(()=>null);
+  if(nvidia){env.__NV_PRIME_RENDER_OFFLOAD='1';env.__GLX_VENDOR_LIBRARY_NAME='nvidia';}
+  return env;
+}
 const gpuKey = 'HKCU\\Software\\Microsoft\\DirectX\\UserGpuPreferences';
 async function gpuValue(executable) {
   const reg = systemTool('reg.exe');
@@ -60,4 +70,4 @@ async function highPerformanceGpu(executable, log) {
     else await run(['add',gpuKey,'/v',executable,'/t','REG_SZ','/d',original,'/f']);
   };
 }
-module.exports = {runPreLaunch, highPerformanceGpu};
+module.exports = {linuxGameEnv,runPreLaunch, highPerformanceGpu};

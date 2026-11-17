@@ -77,7 +77,7 @@ test('the project credential works on a fresh installation and stays out of mirr
     assert.equal(opt.headers['x-api-key'],undefined);return Response.json({data:{id:432}});
   }});
   assert.equal((await res.cf('/games/432')).id,432);
-  assert.deepEqual(seen,['https://api.curseforge.com','https://mod.mcimirror.top']);
+  assert.deepEqual(seen,['https://api.curseforge.com','https://api.curseforge.com','https://api.curseforge.com','https://mod.mcimirror.top']);
   const edge='https://edge.forgecdn.net/files/123/456/a.jar';
   assert.equal(downloadSources(edge,false)[0],'https://mod.mcimirror.top/files/123/456/a.jar');
   assert.deepEqual(downloadSources(edge+'?signed=val',false),[edge+'?signed=val']);

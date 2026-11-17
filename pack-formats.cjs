@@ -46,7 +46,10 @@ function composePatches(baseProfile,patches,preferredJava){
   if(patch.downloads?.client){const client=patch.downloads.client;if(!client.url)throw Error('Minecraft 主文件缺少下载地址');profile.downloads={client:descriptor(client,'com.mojang:minecraft:client')};delete profile.downloads.client.path;}
   if(patch.mainJar?.downloads?.artifact){const client=patch.mainJar.downloads.artifact;if(!client.url)throw Error('Minecraft 主文件缺少下载地址');profile.downloads={client:descriptor(client,patch.mainJar.name||'com.mojang:minecraft:'+patch.version+':client')};delete profile.downloads.client.path;}
   if(patch.minecraftArguments!==undefined){if(typeof patch.minecraftArguments!=='string')throw Error('整合包游戏参数无效');profile.arguments.game=splitArguments(patch.minecraftArguments);}
-  if(patch.arguments?.game)profile.arguments.game=argumentList(patch.arguments.game,'游戏');
+  if(patch.arguments?.game){
+   const game=argumentList(patch.arguments.game,'游戏');
+   if(game.length||patch.minecraftArguments===undefined)profile.arguments.game=game;
+  }
   if(patch.arguments?.jvm)profile.arguments.jvm.push(...argumentList(patch.arguments.jvm,'Java'));
   if(patch.jvmArgs)profile.arguments.jvm=argumentList(patch.jvmArgs,'Java');
   if(patch['+jvmArgs'])profile.arguments.jvm.push(...argumentList(patch['+jvmArgs'],'Java'));
@@ -107,6 +110,15 @@ async function inspectPackArchive(file,{signal}={}){
   const localLibraries=mapLocalLibraries(entries,deltaLibraries(patches),[overridePrefix+'libraries/']);const used=new Set([...patchEntries,...localLibraries.map(l=>l.entry)]);
   // Only launcher-declared JAR dependencies may cross into the shared library cache.
   for(const item of files)if(item.name.startsWith(overridePrefix+'libraries/')&&!used.has(item.name))throw Error('整合包包含未在启动配置中声明的依赖：'+item.name);
+  // Optional maintenance tools shipped in CurseForge addons are not game files.
+  let skippedAddonTools=0;
+  for(const entry of files){
+   if(!entry.name.startsWith(overridePrefix))continue;
+   const relative=entry.name.slice(overridePrefix.length);
+   if(/^addons\/.+\.(?:bat|cmd|ps1)$/i.test(relative)){
+    relativeFile(relative);used.add(entry.name);skippedAddonTools++;
+   }
+  }
   const gameFiles=mapGameFiles(entries,[overridePrefix],used);addIcon(gameFiles,entries,typeof m.image==='string'?root+m.image:'');
   let declaredMajors=patches.findLast(p=>Array.isArray(p.compatibleJavaMajors))?.compatibleJavaMajors;
   // GTNH's CurseForge delta format records its recommended JVM only. Its
@@ -114,7 +126,7 @@ async function inspectPackArchive(file,{signal}={}){
   if(!declaredMajors&&m.version==='2.9.0'&&/^GT\s*New\s*Horizons$/i.test(m.name||'')&&m.minecraft.version==='1.7.10'&&match?.[2]==='10.13.4.1614'&&patches.some(p=>p.mainClass==='com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread')&&patches.some(p=>p['+libraries']?.some(l=>l.name==='com.github.GTNewHorizons:lwjgl3ify:3.0.42:forgePatches')))declaredMajors=[17,21,25,26];
   const java=javaRequirement(declaredMajors,Number(m.minecraft.javaVersion));
   if(match?.[1]==='cleanroom'&&!java)throw Error('Cleanroom 启动补丁缺少 Java 兼容范围');
-  return {format:kind,name:m.name||'CurseForge 整合包',game:m.minecraft.version,loader:match?.[1],version:match?.[2],files:m.files.filter(f=>f.required!==false).map(f=>{if(!/^\d+$/.test(String(f.projectID))||!/^\d+$/.test(String(f.fileID)))throw Error('整合包项目或文件编号无效');return {projectId:String(f.projectID),versionId:String(f.fileID)};}),overrides:[overridePrefix],optional:m.files.filter(f=>f.required===false).length,...(patches.length?{profilePatches:patches}:{}),...(match?.[1]==='cleanroom'?{patchBase:'vanilla'}:{}),java,memory:Number.isFinite(m.minecraft.recommendedRam)?Math.ceil(m.minecraft.recommendedRam/1024):undefined,localLibraries,gameFiles};
+  return {format:kind,skippedAddonTools,name:m.name||'CurseForge 整合包',game:m.minecraft.version,loader:match?.[1],version:match?.[2],files:m.files.filter(f=>f.required!==false).map(f=>{if(!/^\d+$/.test(String(f.projectID))||!/^\d+$/.test(String(f.fileID)))throw Error('整合包项目或文件编号无效');return {projectId:String(f.projectID),versionId:String(f.fileID)};}),overrides:[overridePrefix],optional:m.files.filter(f=>f.required===false).length,...(patches.length?{profilePatches:patches}:{}),...(match?.[1]==='cleanroom'?{patchBase:'vanilla'}:{}),java,memory:Number.isFinite(m.minecraft.recommendedRam)?Math.ceil(m.minecraft.recommendedRam/1024):undefined,localLibraries,gameFiles};
  }
  const components=m.components;if(components.length>64)throw Error('MultiMC 组件数量超过限制');const minecraft=components.find(c=>c.uid==='net.minecraft');if(!minecraft||typeof minecraft.version!=='string')throw Error('MultiMC 整合包缺少 Minecraft 版本');versionName(minecraft.version);
  const loaderComponents=components.filter(c=>['net.minecraftforge','net.neoforged','net.fabricmc.fabric-loader'].includes(c.uid));if(loaderComponents.length>1)throw Error('整合包包含多个加载器，暂不支持');const component=loaderComponents[0];let loader=({'net.minecraftforge':'forge','net.neoforged':'neoforge','net.fabricmc.fabric-loader':'fabric'})[component?.uid];if(component?.version)versionName(component.version);

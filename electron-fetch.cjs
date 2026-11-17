@@ -25,9 +25,13 @@ function electronFetch(net, url, options = {}) {
       incoming?.destroy(error);
       reject(error);
     });
-    request.once('redirect', (status, _method, location) => {
+    request.once('redirect', (status, _method, location, responseHeaders = {}) => {
       cleanup();
-      resolve(new Response(null, {status, headers:{location}}));
+      const headers = new Headers({location});
+      const checksum = Object.entries(responseHeaders).find(([name]) => name.toLowerCase() === 'x-bmclapi-hash')?.[1];
+      const digest = Array.isArray(checksum) && checksum.length === 1 ? checksum[0] : checksum;
+      if (typeof digest === 'string' && /^[a-f0-9]{40}$/i.test(digest)) headers.set('x-bmclapi-hash', digest);
+      resolve(new Response(null, {status, headers}));
       // Do not call followRedirect. The caller validates the destination and
       // computes a fresh set of credentials for it.
     });

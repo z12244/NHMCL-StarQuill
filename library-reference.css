@@ -6,6 +6,9 @@ body.reference-ui #page-instances .library-heading-caption{border-left:1px solid
 body.reference-ui #page-instances .library-heading-caption small{display:block;letter-spacing:3px;font-size:9px;margin-top:4px;white-space:nowrap}
 body.reference-ui #page-instances .library-heading>.row-actions{margin-left:auto;flex:none;align-self:flex-end;gap:6px}
 body.reference-ui #page-instances .library-heading>.row-actions button{font-size:11px;padding:6px 8px;min-height:29px}
+body.reference-ui #page-instances button.library-delete{margin-top:14px;transition:background-color .18s ease,color .18s ease,border-color .18s ease}
+body.reference-ui #page-instances button.library-delete:is(:hover,:focus-visible):not(:disabled){background:#ad2f34;color:white;border-color:#ad2f34}
+@media(prefers-reduced-motion:reduce){body.reference-ui #page-instances button.library-delete{transition:none}}
 body.reference-ui #page-instances .library-workspace{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}
 body.reference-ui #page-instances .library-workspace.has-selection{grid-template-columns:minmax(0,1.66fr) minmax(222px,1fr)}
 body.reference-ui #page-instances .library-list{min-width:0}

@@ -17,6 +17,7 @@ function buildKey() {
   return entry.getPassword() || '';
 }
 async function main() {
+  require('./build-game-window-helper.cjs').buildGameWindowHelper();
   const value = buildKey();
   const config = {...project.build};
   const bundle = process.env.ELECTRON_BUILDER_NSIS_DIR || await getBinFromUrl(

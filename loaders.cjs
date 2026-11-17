@@ -1,12 +1,56 @@
 const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto'),{spawn}=require('node:child_process');
 const {MinecraftFolder}=require('@xmcl/core');
 const {pipeJavaLog}=require('./java-output.cjs');
-const {Downloads,sources,hashFile,pool}=require('./downloads.cjs');const {layout,writeJSON,readJSON,resolveVersion,versionName,under}=require('./storage.cjs');
+const {Downloads,sources,hashFile,pool,MIRROR}=require('./downloads.cjs');const {layout,writeJSON,readJSON,resolveVersion,versionName,under}=require('./storage.cjs');
 const {Game}=require('./game.cjs');const {javaRequirement}=require('./java.cjs');const {json,response,exists,httpsURL,noLinks}=require('./content-utils.cjs');
 function neoGame(v){const p=v.replace(/-.*$/,'').split('.');if(Number(p[0])>=26)return p.slice(0,3).join('.').replace(/\.0$/,'');return '1.'+p[0]+(p[1]==='0'?'':'.'+p[1]);}
+async function installerSha1(url, hint, mode, fetcher, signal) {
+ const sha1 = /^[0-9a-f]{40}$/i;
+ signal?.throwIfAborted();
+ if (typeof hint === 'string' && sha1.test(hint)) return hint.toLowerCase();
+ // Pack manifests pin coordinates but do not normally include an installer digest.
+ const forge=/^https:\/\/maven\.minecraftforge\.net\/net\/minecraftforge\/forge\/(([0-9]+(?:\.[0-9]+)+)-[A-Za-z0-9._-]+)\/forge-\1-installer\.jar$/.exec(url);
+ if(forge){
+   const [,coordinate,game]=forge;
+   if(mode!=='official')try{
+     const rows=await json(fetcher,MIRROR+'/forge/minecraft/'+game,signal);
+     for(const row of rows){
+       if(row.mcversion!==game||typeof row.version!=='string'||forgeArtifactVersion(game,row.version,row.branch)!==coordinate)continue;
+       const value=row.files?.find(f=>f.category==='installer'&&f.format==='jar'&&sha1.test(f.hash))?.hash;
+       if(value)return value.toLowerCase();
+     }
+   }catch{signal?.throwIfAborted();}
+   try{
+     const page=await response(fetcher,'https://files.minecraftforge.net/net/minecraftforge/forge/index_'+game+'.html',signal);
+     for(const item of (await page.text()).matchAll(/<li\b[^>]*>((?:(?!<li\b)[\s\S])*?)<\/li>/gi)){
+       if(!item[1].includes('href="'+url+'"'))continue;
+       const digest=/<strong>\s*SHA1:\s*<\/strong>\s*([a-f0-9]{40})\b/i.exec(item[1]);
+       if(digest)return digest[1].toLowerCase();
+     }
+   }catch{signal?.throwIfAborted();}
+ }
+ for (const jarURL of sources(url, mode)) {
+   try {
+     const sidecar = await response(fetcher, jarURL + '.sha1', signal);
+     const hash = (await sidecar.text()).trim().split(/\s+/)[0];
+     if (sha1.test(hash)) return hash.toLowerCase();
+   } catch { signal?.throwIfAborted(); }
+   if (new URL(jarURL).origin !== MIRROR) continue;
+   // BMCLAPI can publish the blob SHA-1 on the Maven artifact response
+   // even when its repository does not mirror the checksum sidecar.
+   try {
+     const timeout = AbortSignal.timeout(15000);
+     const reply = await fetcher(jarURL, {method:'HEAD', redirect:'manual',
+       signal:signal ? AbortSignal.any([signal, timeout]) : timeout});
+     const hash = reply.headers.get('x-bmclapi-hash');
+     if ([200,301,302,303,307,308].includes(reply.status) && hash && sha1.test(hash)) return hash.toLowerCase();
+   } catch { signal?.throwIfAborted(); }
+ }
+ throw Error('无法获取加载器安装包校验值，请稍后重试或切换下载源');
+}
 function forgeArtifactVersion(game,version,branch){let value=String(version);if(value.startsWith(game+'-'))value=value.slice(game.length+1);if(value.endsWith('-'+game))value=value.slice(0,-game.length-1);const resolved=require('@xmcl/installer').resolveForgeArtifactVersion(game,value);return branch&&!resolved.endsWith('-'+branch)?resolved+'-'+branch:resolved;}
 function loaderInfo(meta){const names=(meta.libraries||[]).map(l=>l.name||''),declared=meta.starQuill||{},cleanroom=names.find(n=>/^com\.cleanroommc:cleanroom(?:-universal)?:/.test(n));const loader=cleanroom?'cleanroom':['forge','neoforge','fabric','cleanroom'].includes(declared.loader)?declared.loader:names.some(n=>n.startsWith('net.neoforged:'))?'neoforge':names.some(n=>n.startsWith('net.minecraftforge:forge:'))?'forge':names.some(n=>n.startsWith('net.fabricmc:fabric-loader:'))?'fabric':null;const coordinate=cleanroom||names.find(n=>loader==='forge'?n.startsWith('net.minecraftforge:forge:'):loader==='neoforge'?n.startsWith('net.neoforged:'):loader==='fabric'?n.startsWith('net.fabricmc:fabric-loader:'):false);return {loader,loaderVersion:loader==='cleanroom'&&cleanroom?cleanroom.split(':')[2]:declared.loaderVersion||coordinate?.split(':')[2]};}
-async function targetInfo(root,id,isolate=true,advanced){const r=await resolveVersion(root,id);const effective=await require('./instance-config.cjs').instanceOptions(root,id,{isolate,advanced},r.raw);return {id,game:r.raw.starQuill?.game||r.chain[0].id,...loaderInfo(r.meta),blockModUpdates:effective.advanced.blockModUpdates,folder:layout(root,id,effective.isolate).game};}
+async function targetInfo(root,id,settings=true,advanced){const r=await resolveVersion(root,id);const global=typeof settings==='boolean'?{isolate:settings,advanced}:settings;const effective=await require('./instance-config.cjs').instanceOptions(root,id,global,r.raw);return {id,game:r.raw.starQuill?.game||r.chain[0].id,...loaderInfo(r.meta),blockModUpdates:effective.advanced.blockModUpdates,folder:layout(root,id,effective.isolate).game};}
 // XMCL writes the unpublished version in staging and resolves Maven artifacts in the real cache.
 class InstallFolder extends MinecraftFolder {
  constructor(stageRoot, sharedRoot) {
@@ -22,27 +66,33 @@ class InstallFolder extends MinecraftFolder {
 }
 class Loaders{
  constructor(options){Object.assign(this,options);this.fetcher||=fetch;this.mode||='auto';this.onLog||=()=>{};this.onStatus||=()=>{};}
- async list(game,loader,signal){versionName(game);if(!['forge','neoforge','fabric'].includes(loader))throw Error('加载器类型无效');if(loader==='fabric'){const d=new Downloads({root:this.root,mode:this.mode,fetcher:this.fetcher,signal});const rows=await d.json('https://meta.fabricmc.net/v2/versions/loader/'+encodeURIComponent(game));return rows.map(r=>({game,loader,version:r.loader.version,stable:r.loader.stable}));}
+ async list(game,loader,signal){versionName(game);
+ if(loader==='optifine')return require('./loader-extras.cjs').listOptifine(this.fetcher,game,signal);
+ if(loader==='cleanroom')return require('./loader-extras.cjs').listCleanroom(this.fetcher,game,signal);
+ if(!['forge','neoforge','fabric'].includes(loader))throw Error('加载器类型无效');if(loader==='fabric'){const d=new Downloads({root:this.root,mode:this.mode,fetcher:this.fetcher,signal});const rows=await d.json('https://meta.fabricmc.net/v2/versions/loader/'+encodeURIComponent(game));return rows.map(r=>({game,loader,version:r.loader.version,stable:r.loader.stable}));}
  const mirror=`https://bmclapi2.bangbang93.com/${loader}/`+(loader==='forge'?'minecraft/':'list/')+encodeURIComponent(game);
  if(this.mode!=='official')try{const rows=await json(this.fetcher,mirror,signal);return rows.filter(r=>r.mcversion===game&&(loader!=='forge'||r.files?.some(f=>f.category==='installer'&&f.format==='jar'))).map(r=>({game,loader,version:r.version,branch:r.branch,sha1:r.files?.find(f=>f.category==='installer'&&f.format==='jar')?.hash,stable:!/(beta|alpha)/i.test(r.version)})).sort((a,b)=>b.version.localeCompare(a.version,undefined,{numeric:true}));}catch(e){if(signal?.aborted)throw e;this.onLog('加载器镜像列表暂不可用，尝试官方');}
  const url=loader==='forge'?'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml':'https://maven.neoforged.net/releases/net/neoforged/'+(game==='1.20.1'?'forge':'neoforge')+'/maven-metadata.xml';const xml=await(await response(this.fetcher,url,signal)).text();const versions=[...xml.matchAll(/<version>([^<]+)<\/version>/g)].map(m=>m[1]);return versions.filter(v=>loader==='forge'||game==='1.20.1'?v.startsWith(game+'-'):neoGame(v)===game).map(v=>({game,loader,version:loader==='forge'||game==='1.20.1'?v.slice(game.length+1):v,stable:!/(beta|alpha)/i.test(v)})).reverse();
  }
  gameEngine(root,version,signal){return new Game({root,sharedRoot:this.root,version,name:'Player',memory:2,isolate:true,source:this.mode,concurrency:this.concurrency||12,fetcher:this.fetcher,getManifest:this.getManifest,signal,onLog:this.onLog,onProgress:p=>this.onStatus(`准备文件 ${p.done}/${p.total} · 复用 ${p.reused}`,p.total?p.done/p.total*100:0)});}
- async createStage(game,id,signal,javaOverride) {
+ async createStage(game,id,signal,javaOverride,{pack=false}={}) {
    versionName(id);
    signal?.throwIfAborted();
    const target=layout(this.root,id).version;
    await noLinks(this.root,target);
    if(await exists(target)) throw Error('版本名称已存在，请使用新的名称');
-   const base=this.gameEngine(this.root,game,signal);
    this.onStatus('准备原版 '+game);
-   const resolved=await base.resolve();
-   const java=await this.chooseJava(javaOverride??javaRequirement(resolved.meta));
-   await base.prepare();
    const stage=path.resolve(this.root,'.starquill','install',crypto.randomUUID());
    await noLinks(this.root,stage);
    await fs.mkdir(stage,{recursive:true});
    try {
+     if(pack){
+       const java=await require('./pack-layout.cjs').preparePackBase(this,stage,game,signal,javaOverride);
+       return {root:stage,game,id,java};
+     }
+     const base=this.gameEngine(this.root,game,signal),resolved=await base.resolve();
+     const java=await this.chooseJava(javaOverride??javaRequirement(resolved.meta));
+     await base.prepare();
      for(const entry of resolved.chain) {
        const src=layout(this.root,entry.id),dest=layout(stage,entry.id);
        await writeJSON(dest.json,entry.raw);
@@ -63,8 +113,7 @@ class Loaders{
  versionName(spec.version);if(spec.loader==='fabric'){this.onStatus('安装 Fabric '+spec.version);const profile=await download.json(`https://meta.fabricmc.net/v2/versions/loader/${encodeURIComponent(game)}/${encodeURIComponent(spec.version)}/profile/json`);if(profile.inheritsFrom!==game||!profile.mainClass)throw Error('Fabric 返回了不匹配的游戏版本');profile.id=id;profile.starQuill={game,loader:'fabric',loaderVersion:spec.version,isolate:true};await writeJSON(layout(root,id).json,profile);return;}
  if(!['forge','neoforge'].includes(spec.loader))throw Error('整合包使用了暂不支持的加载器：'+spec.loader);
  const neo=spec.loader==='neoforge',project=neo&&game!=='1.20.1'?'neoforge':'forge',artifactVersion=neo&&project==='neoforge'?spec.version:forgeArtifactVersion(game,spec.version,spec.branch);const relative=`net/${neo?'neoforged':'minecraftforge'}/${project}/${artifactVersion}/${project}-${artifactVersion}-installer.jar`,url=(neo?'https://maven.neoforged.net/releases/':'https://maven.minecraftforge.net/')+relative;
- let sha1=spec.sha1;if(!sha1)for(const candidate of sources(url+'.sha1',this.mode)){try{const text=await(await response(this.fetcher,candidate,signal)).text();sha1=/^[a-f0-9]{40}/i.exec(text.trim())?.[0];if(sha1)break;}catch(e){if(signal?.aborted)throw e;}}
- if(!sha1)throw Error('无法获取加载器安装包校验值，请稍后重试或切换下载源');
+ const sha1=await installerSha1(url,spec.sha1,this.mode,this.fetcher,signal);
  const minecraft=new InstallFolder(root,this.root);
  const installer={path:under(minecraft.libraries,relative),urls:[url],checksum:{algorithm:'sha1',value:sha1},validator:'zip'};
  const xmcl=require('@xmcl/installer');
@@ -81,6 +130,16 @@ class Loaders{
  await xmcl.executeInstallWorkflow(workflow,runtime,{signal,attempts:1,onEvent:e=>{if(e.type==='task-start')this.onStatus('安装 '+spec.loader+' · '+e.task.id.split(':').at(-1));}});await download.flush();const file=layout(root,id).json,meta=await readJSON(file);meta.starQuill={game,loader:spec.loader,loaderVersion:spec.version,isolate:true};await writeJSON(file,meta);
  }
  async finish(stage,signal){await this.gameEngine(stage.root,stage.id,signal).prepare();if(signal?.aborted)throw Error('已取消安装');const dest=layout(this.root,stage.id).version;if(await exists(dest))throw Error('目标版本已存在，未覆盖');await fs.mkdir(path.dirname(dest),{recursive:true});await fs.rename(layout(stage.root,stage.id).version,dest);this.onLog('安装完成：'+stage.id);return stage.id;}
- async install(spec,id,signal){const stage=await this.createStage(spec.game,id,signal);try{await this.installInStage(stage,spec,signal);return await this.finish(stage,signal);}finally{await this.cleanStage(stage.root);}}
+ async install(spec,id,signal,optifine){
+  const extras=require('./loader-extras.cjs');
+  extras.checkCombination(spec,optifine);
+  if(id===spec.game)throw Error('独立版本名称不能与原版相同');
+  const stage=await this.createStage(spec.game,id,signal);
+  try{
+   if(spec.loader||!optifine)await this.installInStage(stage,spec,signal);
+   if(optifine)await extras.installOptifine(this,stage,spec,optifine,signal);
+   return await this.finish(stage,signal);
+  }finally{await this.cleanStage(stage.root);}
+ }
 }
-module.exports={Loaders,targetInfo,loaderInfo,neoGame,forgeArtifactVersion};
+module.exports={Loaders,targetInfo,loaderInfo,neoGame,forgeArtifactVersion,installerSha1};

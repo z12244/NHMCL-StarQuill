@@ -5,6 +5,19 @@ const {Readable,Writable} = require('node:stream');
 const {electronFetch} = require('../electron-fetch.cjs');
 const {ContentInstaller} = require('../content-install.cjs');
 
+test('manual mirror HEAD exposes its installer checksum without forwarding cookies', async () => {
+  const digest = '0123456789abcdef'.repeat(2) + '01234567';
+  const request = new EventEmitter();
+  request.end = () => request.emit('redirect', 302, 'HEAD', 'https://cdn.example.org/blob', {
+    'X-BMCLAPI-HASH': [digest], 'set-cookie': ['test=example']
+  });
+  const response = await electronFetch({request:()=>request}, 'https://bmclapi2.bangbang93.com/maven/test.jar', {
+    method:'HEAD', redirect:'manual'
+  });
+  assert.equal(response.headers.get('x-bmclapi-hash'), digest);
+  assert.equal(response.headers.has('set-cookie'), false);
+});
+
 test('Electron redirect cancellation exposes the CDN location and only the first host receives the key', async () => {
   const calls=[];
   const net = {request(options) {

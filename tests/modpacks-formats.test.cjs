@@ -51,9 +51,9 @@ function service(root,{onStatus,finishFailure}={}){
   async createStage(version,id,signal,java){
    signal?.throwIfAborted();calls.create.push({version,id,java});
    const base=layout(root,version);
-   try{await fs.access(base.json);}catch{await writeJSON(base.json,baseMeta);await fs.writeFile(base.jar,client);}
    const stageRoot=path.join(root,'.starquill','install',crypto.randomUUID()),stageBase=layout(stageRoot,version);
-   await fs.mkdir(stageBase.version,{recursive:true});await fs.copyFile(base.json,stageBase.json);await fs.copyFile(base.jar,stageBase.jar);
+   await writeJSON(stageBase.json,await fs.access(base.json).then(()=>readJSON(base.json),()=>baseMeta));
+   await fs.writeFile(stageBase.jar,client);
    return {root:stageRoot,game:version,id,java};
   },
   async installInStage(stage,details,signal){
@@ -102,7 +102,7 @@ test('a pre-existing vanilla version remains visible and byte-for-byte unchanged
  await writeJSON(base.json,original);await fs.writeFile(base.jar,client);const before=await fs.readFile(base.json);
  const {modpacks,calls}=service(f.minecraft),plan=await modpacks.plan(f.file,'');await modpacks.install(plan);
  assert.deepEqual(await fs.readFile(base.json),before);assert.deepEqual(await fs.readFile(base.jar),client);
- assert.deepEqual((await scan(f.minecraft)).map(v=>v.id).sort(),[game,plan.id].sort());await fs.access(path.join(base.version,'.starquill-standalone'));
+ assert.deepEqual((await scan(f.minecraft)).map(v=>v.id).sort(),[game,plan.id].sort());assert.deepEqual((await fs.readdir(base.version)).sort(),[game+'.jar',game+'.json']);
  await assertStageClean(f.minecraft,calls);
 });
 
@@ -142,7 +142,7 @@ test('cancellation during bundled content extraction cleans the stage and does n
  const f=await fixture(t,mmcItems({extraFiles:{'config/second.cfg':'two','config/third.cfg':'three'}})),controller=new AbortController();
  const {modpacks,calls}=service(f.minecraft,{onStatus(){controller.abort(new Error('fixture canceled'));}}),plan=await modpacks.plan(f.file,'');
  await assert.rejects(modpacks.install(plan,controller.signal),error=>error.name==='AbortError'&&error.cause?.message==='fixture canceled');assert.equal(calls.finish,0);
- await assert.rejects(fs.access(layout(f.minecraft,plan.id).version),{code:'ENOENT'});assert.deepEqual((await scan(f.minecraft)).map(v=>v.id),[game]);
+ await assert.rejects(fs.access(layout(f.minecraft,plan.id).version),{code:'ENOENT'});assert.deepEqual(await scan(f.minecraft),[]);
  await assertStageClean(f.minecraft,calls);
 });
 

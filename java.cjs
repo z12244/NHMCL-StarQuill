@@ -1,4 +1,5 @@
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
+const {windows, javaBinary, isJavaBinary, pathKey} = require('./platform.cjs');
 const exec=require('node:util').promisify(require('node:child_process').execFile);
 function memoryLimit(bytes=os.totalmem()){return Math.max(1,Math.floor(bytes/1024**3));}
 function parseJava(text,file){
@@ -11,11 +12,12 @@ function parseJava(text,file){
   return {path:file,home:property('java.home'),major,version,arch,bits:/64|aarch64/.test(arch)?64:32,vendor:property('java.vendor')||'Java',stdoutEncoding:property('stdout.encoding')||native,stderrEncoding:property('stderr.encoding')||native,description:text.split('\n').find(s=>/version "/.test(s))?.trim()||version};
 }
 async function inspectJava(file){
-  if(typeof file!=='string'||!path.isAbsolute(file)||!/^javaw?\.exe$/i.test(path.basename(file)))throw Error('请选择有效的 java.exe 或 javaw.exe');
+  if(typeof file!=='string'||!path.isAbsolute(file)||!isJavaBinary(path.basename(file)))throw Error('请选择有效的 Java 可执行文件');
   if(/javaw\.exe$/i.test(file))file=path.join(path.dirname(file),'java.exe');
-  try{file=await fs.realpath(file);const {stdout,stderr}=await exec(file,['-XshowSettings:properties','-version'],{windowsHide:true,timeout:10000,maxBuffer:256*1024});const info=parseJava(stdout+'\n'+stderr,file);if(info.home){try{info.path=await fs.realpath(path.join(info.home,'bin','java.exe'));}catch{}}return info;}catch{throw Error('Java 无法运行：'+file);}
+  try{file=await fs.realpath(file);const {stdout,stderr}=await exec(file,['-XshowSettings:properties','-version'],{windowsHide:true,timeout:10000,maxBuffer:256*1024});const info=parseJava(stdout+'\n'+stderr,file);if(info.home){try{info.path=await fs.realpath(path.join(info.home,'bin',javaBinary));}catch{}}return info;}catch{throw Error('Java 无法运行：'+file);}
 }
 async function registryHomes(){
+  if (!windows) return ['/usr/lib/jvm', '/usr/java', path.join(os.homedir(),'.sdkman','candidates','java')];
   const roots=['HKLM\\SOFTWARE\\JavaSoft','HKLM\\SOFTWARE\\Eclipse Adoptium','HKLM\\SOFTWARE\\WOW6432Node\\JavaSoft','HKCU\\SOFTWARE\\JavaSoft'];
   const rows=await Promise.all(roots.map(async key=>{try{return (await exec('reg.exe',['query',key,'/s'],{windowsHide:true,timeout:3000,maxBuffer:1024*1024})).stdout;}catch{return '';}}));
   return rows.join('\n').split(/\r?\n/).map(s=>s.match(/(?:JavaHome|InstallationPath|Path)\s+REG_SZ\s+(.+)/i)?.[1]?.trim()).filter(Boolean);
@@ -27,17 +29,18 @@ async function scanJava({bundled,selected,root,extraRoots=[],roots,inspect=inspe
     ...['ProgramFiles','ProgramFiles(x86)'].flatMap(env=>['Java','Eclipse Adoptium','Microsoft','Zulu','BellSoft','Amazon Corretto','Eclipse Foundation','Semeru'].map(v=>process.env[env]&&path.join(process.env[env],v))),
     path.join(os.homedir(),'.jdks'),path.join(os.homedir(),'.jabba','jdk'),process.env.APPDATA&&path.join(process.env.APPDATA,'.minecraft','runtime'),
     process.env.LOCALAPPDATA&&path.join(process.env.LOCALAPPDATA,'Programs','Eclipse Adoptium'),root&&path.join(root,'runtime'),...extraRoots];
-  async function walk(dir,depth){if(!dir||visited++>12000)return;const key=path.resolve(dir).toLowerCase();if(seen.has(key))return;seen.add(key);
+  async function walk(dir,depth){if(!dir||visited++>12000)return;const key=pathKey(dir);if(seen.has(key))return;seen.add(key);
     let entries;try{entries=await fs.readdir(dir,{withFileTypes:true});}catch{return;}
-    if(entries.some(e=>e.isFile()&&e.name.toLowerCase()==='java.exe'))add(path.join(dir,entries.find(e=>e.name.toLowerCase()==='java.exe').name));
+    const binary=entries.find(e=>(e.isFile()||e.isSymbolicLink()) && (windows?e.name.toLowerCase():e.name)===javaBinary);
+    if(binary)add(path.join(dir,binary.name));
     if(depth<=0)return;
     for(const e of entries){if(e.isDirectory()&&!e.isSymbolicLink()&&!/^(node_modules|\.git|lib|legal|include|jmods|logs|cache)$/i.test(e.name))await walk(path.join(dir,e.name),depth-1);}
   }
   // PATH entries need only an adjacent bin; known installation roots may be nested.
-  const paths=new Set((process.env.PATH||'').split(path.delimiter).map(p=>path.resolve(p).toLowerCase()));
-  for(const dir of dirs.filter(Boolean))await walk(dir,paths.has(path.resolve(dir).toLowerCase())?1:5);
+  const paths=new Set((process.env.PATH||'').split(path.delimiter).map(p=>pathKey(p)));
+  for(const dir of dirs.filter(Boolean))await walk(dir,paths.has(pathKey(dir))?1:5);
   const items=[],unique=new Set(),queue=[...candidates];
-  await Promise.all(Array.from({length:Math.min(4,queue.length)},async()=>{while(queue.length){const file=queue.shift();try{const item=await inspect(file);const key=item.path.toLowerCase();if(unique.has(key))continue;unique.add(key);item.bundled=!!bundled&&path.resolve(item.path).toLowerCase()===path.resolve(bundled).toLowerCase();items.push(item);}catch{}}}));
+  await Promise.all(Array.from({length:Math.min(4,queue.length)},async()=>{while(queue.length){const file=queue.shift();try{const item=await inspect(file);const key=pathKey(item.path);if(unique.has(key))continue;unique.add(key);item.bundled=!!bundled&&pathKey(item.path)===pathKey(bundled);items.push(item);}catch{}}}));
   return items.sort((a,b)=>b.major-a.major||b.bits-a.bits||b.version.localeCompare(a.version,undefined,{numeric:true}));
 }
 function vanillaJava(meta){if(Number.isInteger(meta.javaVersion?.majorVersion))return meta.javaVersion.majorVersion;

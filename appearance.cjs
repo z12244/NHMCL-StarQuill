@@ -11,11 +11,11 @@ function allowedTexture(value,domains){
   if(u.protocol!=='https:'||u.username||u.password||u.port||!Array.isArray(domains)||!domains.some(d=>typeof d==='string'&&(d.startsWith('.')?u.hostname.endsWith(d)&&u.hostname!==d.slice(1):u.hostname===d)))throw Error('皮肤站返回了未声明的纹理地址');
   return u.href;
 }
-async function bytes(fetcher,url,max,signal){
+async function bytes(fetcher,url,max,signal,refresh=false){
   signal?.throwIfAborted();
   const timeout=AbortSignal.timeout(12000);
   // Appearance requests never carry the account's access token or password.
-  const r=await fetcher(url,{redirect:'error',signal:signal?AbortSignal.any([signal,timeout]):timeout});
+  const r=await fetcher(url,{redirect:'error',...(refresh?{cache:'no-store'}:{}),signal:signal?AbortSignal.any([signal,timeout]):timeout});
   if(!r.ok)throw Error('纹理服务暂不可用');
   let size=0;const parts=[];
   for await(const c of r.body||[]){signal?.throwIfAborted();size+=c.length;if(size>max)throw Error('纹理响应过大');parts.push(Buffer.from(c));}
@@ -77,11 +77,11 @@ async function appearance(root,a,fetcher=fetch,options={}){
       let profile,domains=['textures.minecraft.net'];
       if(a.type==='authlib'){
         const base=require('./yggdrasil.cjs').endpoint(a.server.url);
-        const meta=JSON.parse((await bytes(fetcher,base,1048576,options.signal)).toString());
+        const meta=JSON.parse((await bytes(fetcher,base,1048576,options.signal,options.force)).toString());
         domains=Array.isArray(meta.skinDomains)?meta.skinDomains:[];
-        profile=JSON.parse((await bytes(fetcher,base+'sessionserver/session/minecraft/profile/'+a.uuid,1048576,options.signal)).toString());
+        profile=JSON.parse((await bytes(fetcher,base+'sessionserver/session/minecraft/profile/'+a.uuid,1048576,options.signal,options.force)).toString());
       }else if(a.type==='microsoft'){
-        profile=JSON.parse((await bytes(fetcher,'https://sessionserver.mojang.com/session/minecraft/profile/'+a.uuid,1048576,options.signal)).toString());
+        profile=JSON.parse((await bytes(fetcher,'https://sessionserver.mojang.com/session/minecraft/profile/'+a.uuid,1048576,options.signal,options.force)).toString());
       }else return fallback;
       const prop=profile.properties?.find(p=>p.name==='textures');
       const textures=prop?JSON.parse(Buffer.from(prop.value,'base64').toString()).textures:{};
@@ -89,7 +89,7 @@ async function appearance(root,a,fetcher=fetch,options={}){
       if(textures?.SKIN){
         try{
           const u=a.type==='authlib'?allowedTexture(textures.SKIN.url,domains):textureURL(textures.SKIN.url);
-          result.skin=png(await bytes(fetcher,u,MAX_TEXTURE,options.signal));
+          result.skin=png(await bytes(fetcher,u,MAX_TEXTURE,options.signal,options.force));
           result.model=textures.SKIN.metadata?.model==='slim'?'slim':'default';result.default=false;result.name=a.name;
         }catch{
           if(saved?.value)result={...saved.value,cape:null};
@@ -99,7 +99,7 @@ async function appearance(root,a,fetcher=fetch,options={}){
       if(textures?.CAPE){
         try{
           const u=a.type==='authlib'?allowedTexture(textures.CAPE.url,domains):textureURL(textures.CAPE.url);
-          result.cape=png(await bytes(fetcher,u,MAX_TEXTURE,options.signal),true);
+          result.cape=png(await bytes(fetcher,u,MAX_TEXTURE,options.signal,options.force),true);
         }catch{if(saved?.value.cape)result.cape=saved.value.cape;result=warn(result,'披风暂时无法读取'+(result.cape?'，显示缓存披风':''));}
       }
       options.signal?.throwIfAborted();

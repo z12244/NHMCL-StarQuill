@@ -1,6 +1,6 @@
 const crypto=require('node:crypto'),fs=require('node:fs/promises');
 const {AGENT_SHA256}=require('./skins.cjs');
-const PRESETS=[{id:'littleskin',name:'LittleSkin',url:'https://littleskin.cn/api/yggdrasil/'},{id:'mua',name:'MUA 用户中心',url:'https://skin.mualliance.ltd/api/yggdrasil/'}];
+const {PRESETS,guideEndpoint}=require('./skin-sites.cjs');
 function endpoint(value){if(typeof value!=='string'||value.length>2048)throw Error('皮肤站地址无效');let u;try{u=new URL(value.includes('://')?value:'https://'+value);}catch{throw Error('皮肤站地址无效');}if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash)throw Error('请使用不带账号、查询参数或片段的 HTTPS 皮肤站地址');u.pathname=u.pathname.replace(/\/+$/,'')+'/';return u.href;}
 function profile(p){const id=String(p?.id||'').replaceAll('-','').toLowerCase();if(!/^[a-f0-9]{32}$/.test(id)||typeof p?.name!=='string'||!/^[\p{L}\p{N}_]{1,16}$/u.test(p.name))throw Error('皮肤站返回的角色信息无效');return {id,name:p.name};}
 function metadata(d){if(!d||typeof d.meta?.serverName!=='string'||!Array.isArray(d.skinDomains)||typeof d.signaturePublickey!=='string')throw Error('该地址没有有效的 authlib-injector 配置');let key;try{key=crypto.createPublicKey(d.signaturePublickey);}catch{throw Error('皮肤站签名公钥无效');}if(key.asymmetricKeyType!=='rsa'||key.asymmetricKeyDetails?.modulusLength<2048)throw Error('皮肤站签名公钥不受支持');return d;}
@@ -10,7 +10,9 @@ class YggdrasilAuth{
   async request(url,body,signal){let r,data;try{r=await this.fetch(url,{method:body?'POST':'GET',headers:{Accept:'application/json',...(body?{'Content-Type':'application/json'}:{})},...(body?{body:JSON.stringify(body)}:{}),redirect:'error',signal:signal?AbortSignal.any([signal,AbortSignal.timeout(20000)]):AbortSignal.timeout(20000)});
       if(r.status!==204){const raw=await r.text();if(raw.length>1024*1024)throw Error('response too large');try{data=JSON.parse(raw);}catch{data={};}}else data={};
     }catch{if(signal?.aborted)throw Error('皮肤站登录已取消');throw Error('无法连接皮肤站，请检查网络、地址及 HTTPS 证书。');}if(signal?.aborted)throw Error('皮肤站登录已取消');return {ok:r.ok,status:r.status,data};}
-  async discover(input,signal){endpoint(input);let url=new URL(input.includes('://')?input:'https://'+input).href;const visited=new Set();
+  async discover(input,signal){
+    if(typeof input==='string' && URL.canParse(input))input=guideEndpoint(new URL(input))||input;
+    endpoint(input);let url=new URL(input.includes('://')?input:'https://'+input).href;const visited=new Set();
     for(let i=0;i<5;i++){if(visited.has(url))throw Error('皮肤站地址跳转形成循环');visited.add(url);let r;try{r=await this.fetch(url,{method:'GET',redirect:'manual',headers:{Accept:'application/json'},signal:signal?AbortSignal.any([signal,AbortSignal.timeout(15000)]):AbortSignal.timeout(15000)});}catch{throw Error(signal?.aborted?'皮肤站登录已取消':'无法识别皮肤站，请检查网络或填写完整 API 地址');}
       const redirected=r.status>=300&&r.status<400,location=redirected?r.headers.get('location'):r.headers.get('x-authlib-injector-api-location');if(location){const next=new URL(location,url).href;endpoint(next);if(redirected?next!==url:endpoint(next)!==endpoint(url)){await r.body?.cancel();url=next;continue;}}
       if(!r.ok)throw Error('皮肤站配置请求失败（HTTP '+r.status+'）');let data;try{const raw=await r.text();if(raw.length>1024*1024)throw Error();data=JSON.parse(raw);}catch{throw Error('请输入该站提供的 Yggdrasil API 地址，如 https://站点/api/yggdrasil');}

@@ -25,7 +25,7 @@ function analyzeCrash(text, code, signal) {
   const rules = [
     ['main-class', /(?:Could not find or load main class|找不到或无法加载主类|找不到或無法載入主類別)\s+[\w.$/]+/i, 'Java 找不到游戏启动主类', '检查此版本 JSON 中的 mainClass、客户端 JAR 和加载器依赖。可从资源工坊重新安装相同游戏及加载器版本。'],
     ['heap', /OutOfMemoryError:\s*(?:Java heap space|GC overhead limit exceeded)|Out of memory!/i, '游戏堆内存不足', '在有足够可用内存时适当提高分配；也可减少模组、视距或资源包。'],
-    ['native-memory', /There is insufficient memory|Native memory allocation.*failed|Could not reserve enough space|unable to create native thread|OutOfMemoryError:\s*(?:Direct buffer memory|Metaspace)/i, '系统或 Java 本地内存不足', '关闭不需要的程序，并给 Windows 留出内存；不要继续盲目提高游戏最大内存。'],
+    ['native-memory', /There is insufficient memory|Native memory allocation.*failed|Could not reserve enough space|unable to create native thread|OutOfMemoryError:\s*(?:Direct buffer memory|Metaspace)/i, '系统或 Java 本地内存不足', '关闭不需要的程序，并给系统留出内存；不要继续盲目提高游戏最大内存。'],
     ['java', /UnsupportedClassVersionError|compiled by a more recent version|class file version .*only recognizes|Unrecognized VM option|Invalid maximum heap size/i, 'Java 版本或启动参数不兼容', '先启用自动匹配 Java，核对版本设置中的手动 Java 与额外启动参数。'],
     ['dependency', /Missing (?:mandatory|required) dependencies|requires? .*which is missing|requires? .*not installed|ModResolutionException|Incompatible mod set|MissingModsException/i, '可能缺少前置模组或模组版本不兼容', '查看日志列出的模组和版本要求，安装对应前置，并核对 Minecraft 与加载器版本。'],
     ['duplicate', /DuplicateModsFoundException|Found duplicate mods|Duplicate mods/i, '可能安装了重复模组', '在版本设置中检查同一模组的多个文件，暂时禁用重复版本后重试。'],
@@ -89,7 +89,15 @@ async function readLog(root, file, preserveHead = false) {
 
 async function exportCrash(context, {code, signal, error = '', fatal = []}, sanitize = redact) {
   const clean = text => redact(sanitize(String(text)));
-  const entries = [], notes = [];const events=await require('./windows-events.cjs').windowsEvents(context);notes.push(events.status);if(events.xml)entries.push({name:'windows-events.xml',text:clean(events.xml)});
+  const entries = [], notes = [];if(process.platform==='linux'){
+    if(Number.isSafeInteger(context.pid))try {
+      const exec=require('node:util').promisify(require('node:child_process').execFile);
+      const {stdout}=await exec('journalctl',['--no-pager','-q','-o','short-iso','--since','@'+Math.floor(context.startedAt/1000),'--until','@'+Math.ceil(Date.now()/1000),'-n','100','_PID='+context.pid],{timeout:5000,maxBuffer:1024*1024});
+      if(stdout.trim())entries.push({name:'linux-journal.txt',text:clean(stdout)});
+    }catch{notes.push('系统日志不可读取');}
+  }else{
+    const events=await require('./windows-events.cjs').windowsEvents(context);notes.push(events.status);if(events.xml)entries.push({name:'windows-events.xml',text:clean(events.xml)});
+  }
   if(context.pid){for(const folder of [...new Set([process.env.TMP,process.env.TEMP,require('node:os').tmpdir()].filter(Boolean))]){
     const file=path.join(folder,'hs_err_pid'+context.pid+'.log');
     try{const s=await fs.lstat(file);if(s.isFile()&&!s.isSymbolicLink()&&s.mtimeMs>=context.startedAt-1500)entries.push({name:'native-fallback/hs_err_pid'+context.pid+'.log',text:clean(await readLog(folder,file,true))});}catch(e){if(e.code!=='ENOENT')notes.push('临时目录 JVM 日志读取失败：'+e.code);}

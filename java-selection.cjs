@@ -9,7 +9,7 @@ function validateJavaSelection(settings,{inherit=false}={}){
  if(!JAVA_MODES.includes(mode)&&!(inherit&&mode==='inherit'))throw Error('Java 选择策略无效');
  if(mode==='major'&&!validMajor(settings.javaMajor))throw Error('请选择要自动匹配的 Java 主版本');
  if(typeof settings.java!=='string'||settings.java.length>1024)throw Error('Java 路径无效');
- if(mode==='manual'&&(!path.isAbsolute(settings.java)||!/^javaw?\.exe$/i.test(path.basename(settings.java))))throw Error('请浏览并选择有效的 java.exe 或 javaw.exe');
+ if(mode==='manual'&&(!path.isAbsolute(settings.java)||!require('./platform.cjs').isJavaBinary(path.basename(settings.java))))throw Error('请浏览并选择有效的 Java 可执行文件');
  return {javaMode:mode,javaMajor:validMajor(settings.javaMajor)?settings.javaMajor:21};
 }
 function inside(folder,file){const relative=path.relative(path.resolve(folder),path.resolve(file));return relative!==''&&relative!=='..'&&!relative.startsWith('..'+path.sep)&&!path.isAbsolute(relative);}
@@ -31,7 +31,7 @@ async function resolveJavaSelection({root,id,settings,required,items=[],inspect=
   }else java=chooseJava(runtimes,requirement,settings.memory);
  }
  if(!javaCompatible(java.major,requirement))throw Error(`此版本需要 Java ${describeJava(requirement)}，当前选择为 Java ${java.major}；请更换 Java 选择策略`);
- if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch||''))throw Error('此启动器需要 Windows x64 Java，请选择 64 位 Java');
+ if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch||''))throw Error('此启动器需要 x64 Java，请选择 64 位 Java');
  return java;
 }
 module.exports={JAVA_MODES,validMajor,validateJavaSelection,resolveJavaSelection};

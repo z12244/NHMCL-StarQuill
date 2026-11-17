@@ -8,7 +8,7 @@
     const route={page:name,scroll:content.scrollTop};
     if(name==='market')route.tab=selected('[data-market-tab].selected','marketTab');
     if(name==='settings')route.tab=selected('[data-ref-settings][aria-selected="true"]','refSettings');
-    if(name==='accounts'){route.tab=selected('[data-ref-account-tab].selected','refAccountTab');const panel=document.querySelector('.appearance-panel');route.preview=!!panel&&!panel.classList.contains('hidden');if(route.preview)route.previewId=panel.dataset.accountId||accountData.active;}
+    if(name==='accounts'){const panel=document.querySelector('.appearance-panel');route.preview=!!panel&&!panel.classList.contains('hidden');if(route.preview)route.previewId=panel.dataset.accountId||accountData.active;}
     if(name==='instances')route.version=selected('.library-row.selected','libraryVersion');
     if(name==='instance'){route.tab=selected('[data-instance-tab].selected','instanceTab');route.id=document.getElementById('instance-subtitle').textContent.split(' · Minecraft ')[0];}
     return route;
@@ -28,7 +28,6 @@
       if(route.page==='market')clickData('data-market-tab',route.tab);
       if(route.page==='settings'&&route.tab)window.referenceUI.settingsTab(route.tab);
       if(route.page==='accounts'){
-        if(route.tab)window.referenceUI.accountTab(route.tab);
         if(!route.preview&&!document.querySelector('.appearance-panel').classList.contains('hidden'))document.getElementById('appearance-close').click();
         if(route.preview){const account=accountData.accounts.find(a=>a.id===(route.previewId||accountData.active));if(account)await window.appearanceUI.show(account,{automatic:true});}
       }
@@ -43,6 +42,7 @@
   }
   async function back(){
     if(applying)return false;
+    if(snapshot().page==='market'&&snapshot().tab==='browse'&&window.marketUI?.backToResults())return true;
     record();let previous=stack.pop();
     if(!previous){const current=snapshot();if(current.page==='home')return false;previous={page:current.page==='instance'?'instances':'home',scroll:0};}
     await restore(previous);return true;

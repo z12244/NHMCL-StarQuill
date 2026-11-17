@@ -85,17 +85,24 @@ Section
 
   chooseSlot:
   StrCpy $INSTDIR "$LOCALAPPDATA\NHMCL-StarQuill\engine\${CACHE_ID}-$slot"
-  ; Never overwrite or recursively delete an existing or in-use cache. A
-  ; partial/corrupt cache has no valid stamp and can be repaired in a new slot.
+  ; Hold the cache mutex throughout validation and extraction. A cache
+  ; with .building but no .ready has never been used to launch Electron.
   IfFileExists "$INSTDIR\." checkSlot 0
   ClearErrors
   CreateDirectory "$INSTDIR"
   IfErrors privateCopy
   Goto extract
   checkSlot:
+    IfFileExists "$INSTDIR\.ready" checkReady
+    IfFileExists "$INSTDIR\.building" 0 nextSlot
+    StrCpy $record "yes"
+    Call CheckCache
+    StrCmp $valid 1 sealCache nextSlot
+  checkReady:
     StrCpy $record "no"
     Call CheckCache
     StrCmp $valid 1 launch
+  nextSlot:
     IntOp $slot $slot + 1
     IntCmp $slot 16 privateCopy chooseSlot privateCopy
 
@@ -113,6 +120,7 @@ Section
     StrCpy $record "yes"
     Call CheckCache
     StrCmp $valid 1 0 extractionFailed
+  sealCache:
     ClearErrors
     Rename "$INSTDIR\.building" "$INSTDIR\.ready"
     IfErrors extractionFailed

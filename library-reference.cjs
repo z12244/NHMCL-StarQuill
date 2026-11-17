@@ -41,6 +41,13 @@
     const pills=node('div','library-detail-pills');pills.append(node('span','',loaderName(details.target.loader)),node('span','',details.target.game));names.append(pills);
     const metadata=node('div','library-meta'),java=details.effective.javaMode==='major'?'自动选择 · Java '+details.effective.javaMajor:details.effective.javaMode==='folder'?'版本文件夹中的 Java':details.effective.javaMode==='auto'?(details.javaRequirement&&details.javaRequirement.min!==details.javaRequirement.max?'自动匹配 · 多版本兼容':'自动匹配 · Java '+details.requiredJava):(javaItems.find(j=>j.path===details.effective.java)?'Java '+javaItems.find(j=>j.path===details.effective.java).version+'（手动）':'手动指定 Java');
     metadata.append(meta('游戏版本',details.target.game),meta('模组加载器',loaderName(details.target.loader)+(details.target.loaderVersion?' '+details.target.loaderVersion:'')),meta('内存分配',details.effective.memory+' GB（'+(details.effective.memory*1024)+' MB）',()=>window.instanceUI.open(item.id)),meta('Java 版本',java,()=>window.instanceUI.open(item.id)));detail.append(metadata);
+    const remove=button('删除版本',async()=>{
+      if(await api.deleteInstance(item.id,settings.root)){
+        if(settings.selected===item.id)settings.selected=el('version').value||'';
+        toast('版本已移入回收站');
+      }
+    });
+    remove.classList.add('library-delete');remove.disabled=locked;detail.append(remove);
   }
   async function previewVersion(item){if(!item.ready||locked)return;preview=item.id;details=null;const ticket=++serial;renderRows();renderDetail();requestAnimationFrame(fitNames);try{const value=await api.instanceInfo(item.id);if(ticket!==serial||preview!==item.id)return;details=value;renderDetail();}catch(error){if(ticket!==serial)return;detail.append(node('p','library-detail-error','无法读取：'+error.message));}}
   function download(){page('market');window.marketUI?.installTab();}

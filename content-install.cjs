@@ -5,10 +5,14 @@ function cacheFile(root,f){const h=expectedHash(f);if(!h)throw Error('资源缺�
 const {readModMetadata}=require('./mod-metadata.cjs');
 function modIds(file){return readModMetadata(file).ids;}
 class ContentInstaller{
- constructor({root,fetcher=fetch,onLog=()=>{},onStatus=()=>{},concurrency=8,getCurseForgeKey=()=>''}){Object.assign(this,{root,fetcher,onLog,onStatus,concurrency,getCurseForgeKey});}
+ constructor({root,fetcher=fetch,onLog=()=>{},onStatus=()=>{},concurrency=8,source='auto',getCurseForgeKey=()=>''}){Object.assign(this,{root,fetcher,onLog,onStatus,concurrency,source,getCurseForgeKey});}
  downloader(signal){
-   return new Downloads({root:this.root,fetcher:this.fetcher,mode:'official',signal,concurrency:this.concurrency,onLog:this.onLog,
-     sourceResolver:url=>require('./curseforge-access.cjs').downloadSources(url,!!this.getCurseForgeKey()),
+   return new Downloads({root:this.root,fetcher:this.fetcher,mode:'official',signal,concurrency:this.concurrency,timeout:45000,onLog:this.onLog,
+     sourceResolver:(url,mode,item)=>{
+       const digest=item&&expectedHash(item);
+       const fallback=this.source!=='official'&&digest&&digest.algorithm!=='md5';
+       return require('./curseforge-access.cjs').downloadSources(url,!!this.getCurseForgeKey(),fallback);
+     },
      headerResolver:url=>{
        if(new URL(url).origin!=='https://edge.forgecdn.net')return {};
        const key=this.getCurseForgeKey();

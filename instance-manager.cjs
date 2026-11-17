@@ -15,7 +15,7 @@ async function registry(folder){try{const r=await readJSON(path.join(folder,'.st
 function metadata(file,kind){return kind==='mods'?readModMetadata(file):{};}
 class InstanceManager{
   constructor(root,settings,persist=async()=>{}){this.root=root;this.settings=settings;this.persist=persist;}
-  async info(id){const r=await resolveVersion(this.root,id),config=await readInstanceConfig(this.root,id),effective=await instanceOptions(this.root,id,this.settings,r.raw),target=await targetInfo(this.root,id,this.settings.isolate);const artifactVersion=target.loaderVersion||'';target.loaderVersion=artifactVersion.startsWith(target.game+'-')?artifactVersion.slice(target.game.length+1):artifactVersion;return {id,config:{...config,advanced:versionAdvanced(this.root,id,this.settings,config)},globalAdvanced:advanced.effective(this.settings.advanced),effective:{advanced:effective.advanced,memory:effective.memory,javaMode:effective.javaMode,javaMajor:effective.javaMajor,java:effective.java,isolate:effective.isolate},target,requiredJava:requiredJava(r.meta),javaRequirement:javaRequirement(r.meta),requiredJavaDescription:describeJava(javaRequirement(r.meta)),forcedIsolation:r.raw.starQuill?.isolate===true,memoryLimit:memoryLimit()};}
+  async info(id){const r=await resolveVersion(this.root,id),config=await readInstanceConfig(this.root,id),effective=await instanceOptions(this.root,id,this.settings,r.raw),target=await targetInfo(this.root,id,this.settings);const artifactVersion=target.loaderVersion||'';target.loaderVersion=artifactVersion.startsWith(target.game+'-')?artifactVersion.slice(target.game.length+1):artifactVersion;return {id,config:{...config,advanced:versionAdvanced(this.root,id,this.settings,config)},globalAdvanced:advanced.effective(this.settings.advanced),effective:{advanced:effective.advanced,memory:effective.memory,javaMode:effective.javaMode,javaMajor:effective.javaMajor,java:effective.java,isolate:effective.isolate},target,requiredJava:requiredJava(r.meta),javaRequirement:javaRequirement(r.meta),requiredJavaDescription:describeJava(javaRequirement(r.meta)),forcedIsolation:r.raw.starQuill?.isolate===true,memoryLimit:memoryLimit()};}
   async save(id,c){const info=await this.info(id),javaSelection=validateJavaSelection(c,{inherit:true});if(!['inherit','isolated','shared'].includes(c.isolate))throw Error('版本设置选项无效');if(c.memory!==null&&(!Number.isInteger(c.memory)||c.memory<1||c.memory>memoryLimit()))throw Error('内存设置超出本机物理内存');if(info.forcedIsolation&&c.isolate==='shared')throw Error('此模组版本 / 整合包使用独立目录，不能关闭隔离');if(typeof c.displayName!=='string'||c.displayName.length>80)throw Error('显示名称最多 80 字');const file=path.join(layout(this.root,id).version,'.starquill-settings.json');await noLinks(this.root,file);
     const chosen=advanced.overrides(c.advanced ?? info.config.advanced);
     const local=Object.fromEntries(['preLaunch','jvmArgs'].filter(k=>Object.hasOwn(chosen,k)).map(k=>[k,chosen[k]]));
@@ -24,11 +24,27 @@ class InstanceManager{
     if(Object.keys(local).length)this.settings.localVersionArgs[key]=local;else delete this.settings.localVersionArgs[key];
     try {await this.persist();}catch(error){this.settings.localVersionArgs=previous;throw error;}
     try {await writeJSON(file,{schema:1,advanced:advanced.portableOverrides(chosen),displayName:c.displayName.trim(),javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,java:c.java,memory:c.memory,isolate:c.isolate,...(info.config.portableJava?{portableJava:info.config.portableJava}:{})});}catch(error){this.settings.localVersionArgs=previous;await this.persist();throw error;}return this.info(id);}
+  async deleteTarget(id){
+    const target=layout(this.root,id);
+    await noLinks(this.root,target.json);
+    const raw=await readJSON(target.json);
+    if(raw.starQuill?.privateDependency)throw Error('此版本是内部依赖');
+    const sameId = name => process.platform==='win32' ? name.toLowerCase()===id.toLowerCase() : name===id;
+    for(const entry of await fs.readdir(path.dirname(target.version),{withFileTypes:true})){
+      if(sameId(entry.name) || !(entry.isDirectory()||entry.isSymbolicLink()))continue;
+      let other;
+      try {other=await readJSON(path.join(this.root,'versions',entry.name,entry.name+'.json'));}
+      catch(error){if(error.code==='ENOENT'||error instanceof SyntaxError)continue;throw error;}
+      if([other.inheritsFrom,other.jar,other.starQuill?.base].some(value=>typeof value==='string'&&value.toLowerCase()===id.toLowerCase()))
+        throw Error('版本「'+entry.name+'」仍依赖此版本，请先处理依赖版本。');
+    }
+    return target.version;
+  }
   async files(id,kind){if(!FOLDERS[kind])throw Error('资源分类无效');const info=await this.info(id),folder=path.join(info.target.folder,kind);await noLinks(this.root,folder);let entries=[];try{entries=await fs.readdir(folder,{withFileTypes:true});}catch(e){if(e.code!=='ENOENT')throw e;}const records=await registry(info.target.folder),files=[];
-    for(const e of entries){if(!e.isFile()||!e.name.toLowerCase().endsWith(FOLDERS[kind])&&!e.name.toLowerCase().endsWith(FOLDERS[kind]+'.disabled'))continue;const file=path.join(folder,e.name),s=await fs.stat(file),record=records.files.find(r=>typeof r.path==='string'&&r.path.toLowerCase()===(kind+'/'+e.name).toLowerCase());const key=file+':'+stamp(s);let m=metaCache.get(key);if(!m){m=metadata(file,kind);metaCache.set(key,m);while(metaCache.size>2048)metaCache.delete(metaCache.keys().next().value);}files.push({name:e.name,title:record?.chineseName||m.title||e.name.replace(/\.disabled$/i,''),version:m.version||'',ids:m.ids||[],disabled:e.name.toLowerCase().endsWith('.disabled'),managed:!!record,size:s.size,stamp:stamp(s)});}
+    for(const e of entries){if(!e.isFile()||!e.name.toLowerCase().endsWith(FOLDERS[kind])&&!e.name.toLowerCase().endsWith(FOLDERS[kind]+'.disabled'))continue;const file=path.join(folder,e.name),s=await fs.stat(file),record=records.files.find(r=>typeof r.path==='string'&&path.relative(r.path,kind+'/'+e.name)==='');const key=file+':'+stamp(s);let m=metaCache.get(key);if(!m){m=metadata(file,kind);metaCache.set(key,m);while(metaCache.size>2048)metaCache.delete(metaCache.keys().next().value);}files.push({name:e.name,title:record?.chineseName||m.title||e.name.replace(/\.disabled$/i,''),version:m.version||'',ids:m.ids||[],disabled:e.name.toLowerCase().endsWith('.disabled'),managed:!!record,size:s.size,stamp:stamp(s)});}
     files.sort((a,b)=>a.disabled-b.disabled||a.title.localeCompare(b.title,'zh-CN',{numeric:true}));return {files,folder,shared:!info.effective.isolate};
   }
-  async change(input){const {id,kind,name,operation}=input;if(!FOLDERS[kind]||!['toggle','remove'].includes(operation))throw Error('文件操作无效');versionName(name);if(!name.toLowerCase().endsWith(FOLDERS[kind])&&!name.toLowerCase().endsWith(FOLDERS[kind]+'.disabled'))throw Error('文件类型无效');const info=await this.info(id),folder=info.target.folder,relative=kind+'/'+name,file=under(folder,relative);await noLinks(this.root,file);const stat=await fs.lstat(file);if(!stat.isFile()||stamp(stat)!==input.stamp)throw Error('文件已变化，请刷新后重试');const record=await registry(folder),original=record.files.find(r=>r.path.toLowerCase()===relative.toLowerCase());let destination,trash;
+  async change(input){const {id,kind,name,operation}=input;if(!FOLDERS[kind]||!['toggle','remove'].includes(operation))throw Error('文件操作无效');versionName(name);if(!name.toLowerCase().endsWith(FOLDERS[kind])&&!name.toLowerCase().endsWith(FOLDERS[kind]+'.disabled'))throw Error('文件类型无效');const info=await this.info(id),folder=info.target.folder,relative=kind+'/'+name,file=under(folder,relative);await noLinks(this.root,file);const stat=await fs.lstat(file);if(!stat.isFile()||stamp(stat)!==input.stamp)throw Error('文件已变化，请刷新后重试');const record=await registry(folder),original=record.files.find(r=>path.relative(r.path,relative)==='');let destination,trash;
     if(operation==='toggle'){const next=name.toLowerCase().endsWith('.disabled')?name.slice(0,-9):name+'.disabled';destination=under(folder,kind+'/'+next);await noLinks(this.root,destination);if(await exists(destination))throw Error('已存在同名文件，未覆盖');record.files=record.files.map(r=>r===original?{...r,path:kind+'/'+next,disabled:next.endsWith('.disabled')}:r);}
     else{trash=crypto.randomUUID();const dir=path.join(this.root,'.starquill','content-trash',trash);await noLinks(this.root,dir);await fs.mkdir(dir,{recursive:true});destination=path.join(dir,name);await writeJSON(path.join(dir,'record.json'),{schema:1,id,folder,kind,name,record:original,removedAt:new Date().toISOString()});record.files=record.files.filter(r=>r!==original);}
     await fs.rename(file,destination);try{await writeJSON(path.join(folder,'.starquill-content.json'),record);}catch(e){await fs.rename(destination,file);throw e;}return {trash};
@@ -41,6 +57,20 @@ class InstanceManager{
 }
 function registerInstances(ctx){const {ipcMain,dialog,shell}=ctx;const manager=()=>new InstanceManager(ctx.settings().root,ctx.settings(),ctx.persist);
   let changing=false;async function edit(fn){ctx.idle();if(changing)throw Error('版本操作进行中，请稍候');changing=true;try{return await ctx.job(fn,'正在更新版本设置与文件');}finally{changing=false;}}
+  ipcMain.handle('instance-delete',(_,id,root)=>edit(async()=>{
+    const m=manager(), settings=ctx.settings();
+    if(root!==m.root)throw Error('游戏目录已切换，请重新选择版本');
+    const folder=await m.deleteTarget(id);
+    const answer=await dialog.showMessageBox(ctx.window(),{type:'warning',title:'删除版本',
+      message:'将「'+id+'」移入回收站？',detail:folder+'\n此文件夹内的存档、模组和配置也将一同移入回收站。共享资源和其他版本会保留。',
+      buttons:['取消','移入回收站'],defaultId:0,cancelId:0,noLink:true});
+    if(answer.response!==1)return false;
+    await shell.trashItem(await m.deleteTarget(id));
+    if(settings.selected===id)settings.selected='';
+    if(settings.localVersionArgs)delete settings.localVersionArgs[versionKey(m.root,id)];
+    try {await ctx.persist();}finally{await ctx.changed();}
+    return true;
+  }));
   ipcMain.handle('instance-info',(_,id)=>manager().info(id));
   ipcMain.handle('instance-save',(_,input)=>edit(async()=>{const r=await manager().save(input.id,input.config);await ctx.changed();return r;}));
   ipcMain.handle('instance-files',(_,input)=>manager().files(input.id,input.kind));

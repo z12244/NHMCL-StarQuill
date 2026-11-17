@@ -3,7 +3,9 @@ const {createReadStream, createWriteStream} = require('node:fs');
 const path = require('node:path');
 const crypto = require('node:crypto');
 const {once} = require('node:events');
-const {httpsURL} = require('./content-utils.cjs');
+const {httpsURL,transientNetworkError} = require('./content-utils.cjs');
+const {setTimeout:delay} = require('node:timers/promises');
+const {modrinthMirror} = require('./curseforge-access.cjs');
 
 const MIRROR = 'https://bmclapi2.bangbang93.com';
 const MANIFEST = 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json';
@@ -55,7 +57,7 @@ class Downloads {
     let last;
     for(const source of this.sourceResolver(url,this.mode)) {
       this.checkAbort();const timeout=AbortSignal.timeout(this.timeout);
-      try {const r=await this.fetcher(source,{signal:this.signal?AbortSignal.any([this.signal,timeout]):timeout});if(!r.ok)throw Error('HTTP '+r.status);
+      try {const r=await this.fetcher(source,{signal:this.signal?AbortSignal.any([this.signal,timeout]):timeout});if(!r.ok){await r.body?.cancel?.().catch(()=>{});throw Error('HTTP '+r.status);}
         const body=Buffer.from(await r.arrayBuffer());if(sha1&&crypto.createHash('sha1').update(body).digest('hex')!==sha1)throw Error('JSON 校验失败');return JSON.parse(body.toString('utf8'));
       } catch(e){last=e;this.checkAbort();this.onLog('下载源暂不可用，尝试下一来源：'+new URL(source).hostname);}
     }
@@ -67,12 +69,30 @@ class Downloads {
     if(await this.valid(item)){this.stats.reused++;return;}
     if(!item.url)throw Error('缺少本地文件，且版本配置没有下载地址：'+path.relative(this.root,item.file));
     await fs.mkdir(path.dirname(item.file),{recursive:true});
+    const origins=item.urls||[item.url];
+    const candidates=[...new Set(origins.flatMap(u=>this.sourceResolver(u,this.mode,item)))];
+    if(this.mode==='auto' && Date.now()<this.mirrorBlockedUntil){
+      candidates.sort((a,b)=>Number(a.startsWith(MIRROR+'/'))-Number(b.startsWith(MIRROR+'/')));
+    }
+    const hash=expectedHash(item);
+    if(this.mode!=='official' && hash && ['sha1','sha256','sha512'].includes(hash.algorithm)){
+      const prefix='https://maven.neoforged.net/releases/';
+      for(const origin of origins){
+        if(origin.startsWith(prefix))candidates.push('https://maven.creeperhost.net/'+origin.slice(prefix.length));
+      }
+    }
     let last;
-    for(const url of [...new Set((item.urls||[item.url]).flatMap(u=>this.sourceResolver(u,this.mode)))]) for(let attempt=0;attempt<2;attempt++){
-      const isMirror=url.startsWith(MIRROR+'/');if(this.mode==='auto'&&isMirror&&Date.now()<this.mirrorBlockedUntil)break;
-      this.checkAbort();try {await this.transfer(item,url);this.stats.downloaded++;return;}catch(e){last=e;this.checkAbort();this.onLog('重试 '+path.basename(item.file)+' · '+new URL(url).hostname+' · '+(e.cause?.message||e.message));
+    const urls=new Set(candidates),attempts=urls.size===1?3:2;
+    for(const url of urls) for(let attempt=0;attempt<attempts;attempt++){
+      const isMirror=url.startsWith(MIRROR+'/');
+      this.checkAbort();try {await this.transfer(item,url);this.stats.downloaded++;if(isMirror)this.mirrorFailures=0;return;}catch(e){last=e;this.checkAbort();this.onLog('重试 '+path.basename(item.file)+' · '+new URL(url).hostname+' · '+(e.cause?.message||e.message));
+        if(/HTTP (?:401|403|404|410|429)\b/.test(e.message))urls.delete(modrinthMirror(url));
         if(isMirror&&!/HTTP (400|403|404|410)/.test(e.message)&&++this.mirrorFailures>=2){this.mirrorBlockedUntil=Date.now()+60000;if(this.mode==='auto')this.onLog('镜像节点连接不稳定，后续下载暂时使用官方源');}
-        if(/HTTP (400|403|404|410)/.test(e.message)||(this.mode==='auto'&&isMirror))break;}
+        if(/HTTP (400|403|404|410)/.test(e.message)||(this.mode==='auto'&&isMirror))break;
+        const transient=transientNetworkError(e);
+        if(attempt>0&&!transient)break;
+        if(transient&&attempt+1<attempts)await delay(350*(attempt+1),undefined,{signal:this.signal});
+      }
     }
     throw Error('下载失败：'+(item.original||path.basename(item.file))+'（'+last?.message+'）');
   }
@@ -100,7 +120,12 @@ class Downloads {
     try {
       let r=await this.fetchTransfer(url,signal,offset?{Range:`bytes=${offset}-`,'Accept-Encoding':'identity'}:{'Accept-Encoding':'identity'});
       if(offset&&[400,404,416].includes(r.status)){await r.body?.cancel();offset=0;r=await this.fetchTransfer(url,signal,{'Accept-Encoding':'identity'});}
-      if(!r.ok)throw Error('HTTP '+r.status);
+      if(!r.ok){await r.body?.cancel?.().catch(()=>{});throw Error('HTTP '+r.status);}
+      if(/^text\/html\b/i.test(r.headers.get('content-type')||'') &&
+         /\.(?:jar|zip|mrpack)$/i.test(item.original||item.file)){
+        await r.body?.cancel();
+        throw Error('下载源返回了网页，未提供所需的文件');
+      }
       if(offset&&r.status===206){const m=/^bytes (\d+)-(\d+)\/(\d+|\*)$/.exec(r.headers.get('content-range')||'');if(!m||Number(m[1])!==offset)throw Error('断点响应范围无效');}
       else if(r.status===200)offset=0;else if(r.status===206)throw Error('意外的分段响应');
       stream=createWriteStream(part,{flags:offset?'a':'w'});let streamError;

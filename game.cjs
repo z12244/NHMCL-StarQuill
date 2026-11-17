@@ -2,8 +2,9 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
 const {spawn,execFile}=require('node:child_process');const {promisify}=require('node:util');
 const Zip=require('adm-zip');
 const {pipeJavaLog}=require('./java-output.cjs');
+const {gameWindow,syncGameDisplay}=require('./window-settings.cjs');
 const advanced=require('./advanced.cjs');
-const {runPreLaunch,highPerformanceGpu}=require('./launch-system.cjs');
+const {runPreLaunch,highPerformanceGpu,linuxGameEnv}=require('./launch-system.cjs');
 const {Downloads,MANIFEST}=require('./downloads.cjs');
 const {layout,under,readJSON,writeJSON,resolveVersion,libraryKey}=require('./storage.cjs');
 const {inspectJava,requiredJava,javaRequirement,javaCompatible,describeJava}=require('./java.cjs');
@@ -17,11 +18,11 @@ function allowed(rules,context={}){
 function maven(name){const [coordinate,extension='jar']=name.split('@');const [group,artifact,version,classifier]=coordinate.split(':');if(!group||!artifact||!version)throw Error('无效的 Maven 坐标：'+name);return `${group.replaceAll('.','/')}/${artifact}/${version}/${artifact}-${version}${classifier?'-'+classifier:''}.${extension}`;}
 function classifiedMaven(name,classifier){const [coordinate,extension]=name.split('@');return maven(coordinate.split(':').slice(0,3).join(':')+':'+classifier+(extension?'@'+extension:''));}
 function libraryURL(base,relative){return String(base||'https://libraries.minecraft.net/').replace(/^http:/i,'https:').replace(/\/$/,'')+'/'+relative;}
-function libraryFiles(meta,paths){const files=[],classes=[],natives=[];for(const lib of meta.libraries||[]){if(!allowed(lib.rules))continue;
+function libraryFiles(meta,paths,context={}){const files=[],classes=[],natives=[];for(const lib of meta.libraries||[]){if(!allowed(lib.rules,context))continue;
     const artifact=lib.downloads?.artifact;const relative=artifact?.path||maven(lib.name);const file=under(paths.libraries,relative);
     // Legacy native-only descriptors have classifiers but no classpath artifact.
     if(artifact||!lib.natives){files.push({...artifact,file,sha1:artifact?.sha1||lib.sha1,size:artifact?.size??lib.size,hashes:lib.sha512||lib.sha256?{sha512:lib.sha512,sha256:lib.sha256}:undefined,url:artifact?.url||(lib.url||!lib.downloads?libraryURL(lib.url,relative):undefined)});classes.push(file);}
-    const key=lib.natives?.windows?.replace('${arch}','64');
+    const key=lib.natives?.[context.os || require('./platform.cjs').minecraftOS]?.replace('${arch}','64');
     // Old Forge/MultiMC profiles describe natives with Maven coordinates only.
     // An explicit classifier map is authoritative; do not invent missing OS builds.
     const native=key&&(lib.downloads?.classifiers?.[key]||(!lib.downloads?.classifiers?{url:libraryURL(lib.url,classifiedMaven(lib.name,key))}:undefined));
@@ -31,6 +32,27 @@ function expand(list,variables){return (list||[]).flatMap(arg=>typeof arg==='str
   if(typeof arg!=='string')throw Error('版本启动参数无效');return arg.replace(/\$\{([^}]+)\}/g,(_,name)=>{if(!(name in variables))throw Error('不支持的启动参数：'+name);return String(variables[name]);});});}
 function splitLegacy(text){return (text.match(/"[^"\r\n]*"|'[^'\r\n]*'|[^\s]+/g)||[]).map(s=>s.replace(/^("|')(.*)\1$/,'$2'));}
 function offlineUUID(name){const bytes=crypto.createHash('md5').update('OfflinePlayer:'+name).digest();bytes[6]=(bytes[6]&15)|48;bytes[8]=(bytes[8]&63)|128;return bytes.toString('hex');}
+// Some mirrors no longer serve this legacy object. Use Mojang's exact bytes
+// only for manifests requesting this specific revision of the logging config.
+async function supplyLegacyLoggingConfig(descriptor, file, downloads) {
+  const sha1 = '50c9cc4af6d853d9fc137c84bcd153e2bd3a9a82';
+  if (descriptor.id !== 'client-1.7.xml' || descriptor.sha1?.toLowerCase() !== sha1 ||
+      (descriptor.size != null && descriptor.size !== 966)) return;
+  if (await downloads.valid({...descriptor, file})) return;
+  let bytes;
+  try { bytes = await fs.readFile(path.join(__dirname, 'assets', 'log_configs', 'client-1.7.xml')); }
+  catch (error) { if (error.code === 'ENOENT') return; throw error; }
+  if (crypto.createHash('sha1').update(bytes).digest('hex') !== sha1) return;
+  downloads.checkAbort();
+  await fs.mkdir(path.dirname(file), {recursive:true});
+  const temp = file + '.' + crypto.randomUUID() + '.tmp';
+  try {
+    await fs.writeFile(temp, bytes, {flag:'wx'});
+    await fs.rename(temp, file);
+  } finally {
+    await fs.rm(temp, {force:true});
+  }
+}
 class Game {
   constructor(options){this.options=options;this.log=options.onLog||(()=>{});this.downloads=new Downloads({root:options.sharedRoot||options.root,mode:options.source||'auto',concurrency:options.concurrency||16,signal:options.signal,onProgress:options.onProgress,onLog:this.log,fetcher:options.fetcher,sourceResolver:options.sourceResolver});}
   async manifest(){if(this.options.getManifest)return this.options.getManifest();try{const data=await this.downloads.json(MANIFEST);await writeJSON(path.join(this.options.root,'.starquill','version_manifest_v2.json'),data);return {versions:data.versions,cached:false};}catch(error){try{return {versions:(await readJSON(path.join(this.options.root,'.starquill','version_manifest_v2.json'))).versions,cached:true};}catch{throw error;}}}
@@ -39,6 +61,7 @@ class Game {
     this.downloads.trustExisting=forLaunch && options.skipFileCheck;
     await this.downloads.init();const {meta,chain,raw}=await this.resolve();const o=this.options,p=layout(o.root,o.version,raw.starQuill?.isolate===true||o.isolate!==false,o.sharedRoot);this.paths=p;
     await fs.mkdir(p.game,{recursive:true});await fs.mkdir(p.natives,{recursive:true});
+    if(meta.starQuill?.loader==='cleanroom')await require('./cleanroom-mods.cjs').repairTemplate(o.root,p.game,this.downloads);
     // Use a named custom jar when present, otherwise follow the inherited client jar.
     let jarOwner=chain[0].id,client=chain[0].raw.downloads?.client;
     for(const entry of chain){if(entry.raw.downloads?.client){jarOwner=entry.id;client=entry.raw.downloads.client;}}
@@ -55,7 +78,11 @@ class Game {
       for(const asset of Object.values(index.objects||{})){if(!/^[a-f0-9]{40}$/i.test(asset.hash))throw Error('资源索引包含无效哈希');files.push({file:under(p.assets,`objects/${asset.hash.slice(0,2)}/${asset.hash}`),sha1:asset.hash,size:asset.size,url:`https://resources.download.minecraft.net/${asset.hash.slice(0,2)}/${asset.hash}`});}
     }
     const logging=meta.logging?.client;let loggingFile;
-    if(logging?.file){loggingFile=under(p.assets,'log_configs/'+logging.file.id);files.push({...logging.file,file:loggingFile});}
+    if(logging?.file){
+      loggingFile=under(p.assets,'log_configs/'+logging.file.id);
+      await supplyLegacyLoggingConfig(logging.file,loggingFile,this.downloads);
+      files.push({...logging.file,file:loggingFile});
+    }
     await this.downloads.all(files);
     for(const native of libs.natives){const zip=new Zip(native.file);for(const entry of zip.getEntries()){if(entry.isDirectory||native.exclude.some(prefix=>entry.entryName.startsWith(prefix)))continue;const file=under(p.natives,entry.entryName);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,entry.getData());}}
     let gameAssets=p.assets;
@@ -63,9 +90,10 @@ class Game {
     const classpath=[...libs.classes,jar].join(path.delimiter);
     const account=o.account||{type:'offline',name:o.name,uuid:offlineUUID(o.name)};
     const online=account.type==='microsoft',external=account.type==='authlib',authenticated=online||external;if(authenticated&&!account.tokens?.accessToken)throw Error('账号登录已失效，请重新登录');
+    const display=o.display||gameWindow(o.windows);
     const variables={natives_directory:p.natives,launcher_name:'NHMCL-StarQuill',launcher_version:require('./package.json').displayVersion,classpath,classpath_separator:path.delimiter,library_directory:p.libraries,
       auth_player_name:account.name,auth_uuid:account.uuid,auth_access_token:authenticated?account.tokens.accessToken:'0',auth_session:authenticated?`token:${account.tokens.accessToken}:${account.uuid}`:'0',user_type:online?'msa':external?'mojang':'legacy',user_properties:'{}',auth_xuid:online?account.tokens.xuid:'0',clientid:online?account.clientId:'0',
-      version_name:o.version,version_type:meta.type||'custom',game_directory:p.game,assets_root:p.assets,assets_index_name:assetIndex||'legacy',game_assets:gameAssets,resolution_width:'1100',resolution_height:'700'};
+      version_name:o.version,version_type:meta.type||'custom',game_directory:p.game,assets_root:p.assets,assets_index_name:assetIndex||'legacy',game_assets:gameAssets,resolution_width:display.width,resolution_height:display.height};
     let jvm=expand(meta.arguments?.jvm,variables);
     // BootstrapLauncher ignores the vanilla jar by file name. With standard
     // inheritance that file belongs to the parent, not the displayed instance.
@@ -88,24 +116,29 @@ class Game {
     const customSystemLoader=[...jvm,...custom,...(o.extraJvmArgs||[])].some(v=>v.startsWith('-Djava.system.class.loader='));
     const wrapper=process.platform==='win32' && major<19 && !options.disableWrapper && !customSystemLoader
       ? ['-jar',path.join(toolsDir,'java_launch_wrapper-1.4.4.jar')] : [];
+    const displayArgs=['--width',String(display.width),'--height',String(display.height)];
+    if(display.fullscreen)displayArgs.push('--fullscreen');
+    const sized=advanced.mergeGameArgs(gameArgs.filter(a=>a!=='--fullscreen'&&!a.startsWith('--fullscreen=')),displayArgs);
     const args=['-Xms512M','-Xmx'+o.memory+'G',...jvm,...tuning,...custom,...(o.extraJvmArgs||[]),...wrapper,meta.mainClass,
-      ...advanced.mergeGameArgs(gameArgs,advanced.splitArguments(options.gameArgs))];
+      ...advanced.mergeGameArgs(sized,advanced.splitArguments(options.gameArgs))];
     this.log(`文件准备完成：复用 ${this.downloads.stats.reused} 项，下载 ${this.downloads.stats.downloaded} 项`);
     return {args,cwd:p.game,jar,assetIndex,paths:p,stats:{...this.downloads.stats},javaVersion:major};
   }
-  async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=javaRequirement(resolved.meta);if(!javaCompatible(java.major,required))throw Error(`此版本需要 Java ${describeJava(required)}，当前为 Java ${java.major}。请在设置中选择对应 java.exe 或启用自动选择。`);
-    if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch))throw Error('此启动器需要 x64 架构的 Java，请选择 64 位 Windows Java。');
+  async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=javaRequirement(resolved.meta);if(!javaCompatible(java.major,required))throw Error(`此版本需要 Java ${describeJava(required)}，当前为 Java ${java.major}。请在设置中选择对应 Java 或启用自动选择。`);
+    if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch))throw Error('此启动器需要 x64 架构的 Java，请选择 64 位 Java。');
     this.options.javaMajor=java.major;
     const prepared=await this.prepare({forLaunch:true}), o=this.options, options=advanced.effective(o.advanced);
     this.downloads.checkAbort();
     await runPreLaunch(options.preLaunch,{cwd:prepared.cwd,root:o.root,version:o.version,java:o.java,signal:o.signal,log:this.log,encoding:java.stdoutEncoding});
-    this.downloads.checkAbort();await o.beforeSpawn?.(prepared);this.downloads.checkAbort();
+    this.downloads.checkAbort();await o.beforeSpawn?.(prepared);
+    await syncGameDisplay(prepared.cwd,o.display||gameWindow(o.windows));this.downloads.checkAbort();
     if(!prepared.args.some(a=>a.startsWith('-XX:ErrorFile=')))prepared.args.unshift('-XX:ErrorFile='+path.join(prepared.cwd,'hs_err_pid%p.log'));
     let restoreGpu;
     if(options.highPerformance)try {restoreGpu=await highPerformanceGpu(o.java,this.log);}catch(e){this.log('Windows 显卡偏好设置失败，使用系统选择：'+e.message);}
     const restore=()=>restoreGpu?.().catch(e=>this.log('还原 Windows 显卡偏好失败：'+e.message));
     try {this.downloads.checkAbort();
-    const child=spawn(this.options.java,prepared.args,{cwd:prepared.cwd,windowsHide:true,detached:false});
+    const child=spawn(this.options.java,prepared.args,{cwd:prepared.cwd,windowsHide:true,detached:false,
+      env:await linuxGameEnv(options.highPerformance)});
     child.once('close',restore);
     const started=require('node:events').once(child,'spawn');
     pipeJavaLog(child.stdout,java.stdoutEncoding,this.log);

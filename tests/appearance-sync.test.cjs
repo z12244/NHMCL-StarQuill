@@ -27,7 +27,7 @@ test('skin-site sync reads role skin/cape, force refreshes fresh cache and remov
   assert.equal(await cachedAppearance(root,role),null);
   const firstCalls=[];
   const first=await appearance(root,role,server(steve,{cape,seen:firstCalls}),{force:true});
-  assert.equal(firstCalls.length,4);assert.equal(first.skin,uri(steve));assert.equal(first.cape,uri(cape));assert.equal(first.default,false);
+  assert.equal(firstCalls.length,4);assert.ok(firstCalls.every(call=>call.options.cache==='no-store'));assert.equal(first.skin,uri(steve));assert.equal(first.cape,uri(cape));assert.equal(first.default,false);
   assert.deepEqual(await cachedAppearance(root,role),first);
   assert.deepEqual(await appearance(root,role,()=>{throw Error('Cache hit must not fetch');}),first);
   const refreshedCalls=[];

@@ -25,9 +25,9 @@ async function scan(root) {
     try {
       const p=layout(root,dir.name), json=await readJSON(p.json);
       if(json.starQuill?.privateDependency)continue;
-      let displayName;
-      try { displayName=(await readJSON(path.join(p.version,'.starquill-settings.json'))).displayName; } catch {}
-      versions.push({id:dir.name,displayName,type:json.type||'custom',inheritsFrom:json.inheritsFrom||null,ready:true,mainClass:json.mainClass||null});
+      let displayName, configuredIsolation;
+      try { const config=await readJSON(path.join(p.version,'.starquill-settings.json'));displayName=config.displayName;configuredIsolation=config.isolate; } catch {}
+      versions.push({id:dir.name,displayName,...(json.starQuill?.isolate===true?{forcedIsolation:true}:{}),...(configuredIsolation?{configuredIsolation}:{}),type:json.type||'custom',inheritsFrom:json.inheritsFrom||null,ready:true,mainClass:json.mainClass||null});
       if(json.inheritsFrom||json.starQuill?.base)try { await fs.access(path.join(p.version,'starquill-pack.json')); packs.push(dir.name);packParents.set(dir.name,json.inheritsFrom||json.starQuill.base); } catch {}
     }catch(error){versions.push({id:dir.name,ready:false,error:error.message});}
   }
@@ -45,12 +45,46 @@ async function scan(root) {
   return versions.filter(v=>!hidden.has(v.id)).sort((a,b)=>a.id.localeCompare(b.id,undefined,{numeric:true}));
 }
 function libraryKey(lib){const [coords,ext='jar']=lib.name.split('@');const [group,artifact,,classifier='']=coords.split(':');return `${group}:${artifact}:${classifier}@${ext}`;}
-function merge(parent,child){const libraries=new Map((parent.libraries||[]).map(l=>[libraryKey(l),l]));for(const lib of child.libraries||[])libraries.set(libraryKey(lib),lib);
-  return {...parent,...child,downloads:{...parent.downloads,...child.downloads},libraries:[...libraries.values()],arguments:{game:[...(parent.arguments?.game||[]),...(child.arguments?.game||[])],jvm:[...(parent.arguments?.jvm||[]),...(child.arguments?.jvm||[])]}};}
+function libraryGroups(list=[]) {
+  const groups=new Map();
+  for(const library of list) {
+    const key=libraryKey(library);
+    if(!groups.has(key))groups.set(key,[]);
+    groups.get(key).push(library);
+  }
+  return groups;
+}
+function merge(parent,child){
+  const libraries=libraryGroups(parent.libraries);
+  for(const [key,variants] of libraryGroups(child.libraries))libraries.set(key,variants);
+  return {...parent,...child,downloads:{...parent.downloads,...child.downloads},libraries:[...libraries.values()].flat(),arguments:{game:[...(parent.arguments?.game||[]),...(child.arguments?.game||[])],jvm:[...(parent.arguments?.jvm||[]),...(child.arguments?.jvm||[])]}};}
+
+function repairEmbeddedProfile(raw) {
+  if(!raw.starQuill?.isolate || raw.inheritsFrom || !Array.isArray(raw.libraries))return raw;
+  // Older StarQuill exports collapsed Mojang's platform-specific variants to the last (macOS) entry.
+  if(raw.starQuill.game==='1.12.2' && raw.libraries.some(l=>l.name==='org.lwjgl.lwjgl:lwjgl:2.9.2-nightly-20140822')) {
+    const groups=libraryGroups(raw.libraries);
+    const missing=require('./assets/lwjgl-1.12.2.json').filter(l=>{
+      const existing=groups.get(libraryKey(l));
+      return existing?.length===1 && existing[0].name.endsWith(':2.9.2-nightly-20140822') &&
+        existing[0].rules?.length===1 && existing[0].rules[0].action==='allow' && existing[0].rules[0].os?.name==='osx';
+    });
+    if(missing.length)return {...raw,libraries:[...raw.libraries,...structuredClone(missing)]};
+  }
+  // Recover previously imported GTNH CurseForge deltas whose empty modern argument array hid the Forge arguments.
+  if(raw.starQuill.game==='1.7.10' && raw.starQuill.loader==='forge' &&
+     raw.mainClass==='com.gtnewhorizons.retrofuturabootstrap.MainStartOnFirstThread' &&
+     !raw.minecraftArguments && raw.arguments?.game?.length===0 &&
+     raw.libraries.some(l=>l.name.startsWith('com.github.GTNewHorizons:lwjgl3ify:'))) {
+    const game='--username ${auth_player_name} --version ${version_name} --gameDir ${game_directory} --assetsDir ${assets_root} --assetIndex ${assets_index_name} --uuid ${auth_uuid} --accessToken ${auth_access_token} --userProperties ${user_properties} --userType ${user_type} --tweakClass cpw.mods.fml.common.launcher.FMLTweaker'.split(' ');
+    return {...raw,arguments:{...raw.arguments,game}};
+  }
+  return raw;
+}
 async function resolveVersion(root,id,obtain,seen=[]){versionName(id);if(seen.includes(id)||seen.length>16)throw Error('版本继承存在循环或层级过深');const p=layout(root,id);let raw;
   try{raw=await readJSON(p.json);}catch(e){if(e.code!=='ENOENT')throw Error('版本 JSON 损坏：'+p.json);if(!obtain)throw Error('缺少父版本：'+id);raw=await obtain(id);await writeJSON(p.json,raw);}
   if(raw.inheritsFrom){const parent=await resolveVersion(root,raw.inheritsFrom,obtain,[...seen,id]);return {meta:merge(parent.meta,raw),chain:[...parent.chain,{id,raw}],raw};}
-  return {meta:raw,chain:[{id,raw}],raw};
+  raw=repairEmbeddedProfile(raw);return {meta:raw,chain:[{id,raw}],raw};
 }
 async function copyMissing(source,target,stats={copied:0,skipped:0},exclude=new Set()){
   await fs.mkdir(target,{recursive:true});for(const entry of await fs.readdir(source,{withFileTypes:true})){if(exclude.has(entry.name)||entry.isSymbolicLink())continue;const src=path.join(source,entry.name),dst=path.join(target,entry.name);if(entry.isDirectory()){await copyMissing(src,dst,stats);}else if(entry.isFile()){try{await fs.copyFile(src,dst,constants.COPYFILE_EXCL);stats.copied++;}catch(e){if(e.code!=='EEXIST')throw e;stats.skipped++;}}}return stats;
