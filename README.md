@@ -10,6 +10,17 @@
 
 > 🐛 **使用遇到问题？** 请先看 [使用文档](https://github.com/z12244/NHMCL-StarQuill#使用)，仍未解决就 [提交反馈](https://github.com/z12244/NHMCL-StarQuill/issues/new/choose)（Bug / 功能建议 / 使用求助）。
 
+## 下载
+
+到 [最新 Release](https://github.com/z12244/NHMCL-StarQuill/releases/latest) 按平台下载：
+
+| 平台 | 文件 | 说明 |
+| --- | --- | --- |
+| Windows | `NHMCL-StarQuill-stable-1.0.3-win-x64.exe` | 便携 EXE，双击运行 |
+| Linux | `NHMCL-StarQuill-stable-1.0.3-linux-x64` | 单文件 ELF，`chmod +x` 后运行 |
+| macOS | `NHMCL-StarQuill-beta-1.0.3-mac-untested.zip` | 通用二进制（x64 + arm64），基于 beta-1.0.3 交叉打包，**未在 macOS 环境实测**；首次打开请按包内 `macOS-README.txt` 完成 ad-hoc 签名 |
+
+> 各文件 SHA-256 见 Release 附件中的 `SHA256SUMS*.txt`。
 ## 使用
 
 把单文件 EXE 放到准备用来存放游戏的文件夹中打开。首次可创建离线账号或选择皮肤站登录。游戏保存在同目录的 .minecraft，账号和设置保存在 .starquill-profile。升级时退出旧程序，将新 EXE 放回原目录。
