@@ -21,6 +21,7 @@
 | macOS | `NHMCL-StarQuill-beta-1.0.3-mac-untested.zip` | 通用二进制（x64 + arm64），基于 beta-1.0.3 交叉打包，**未在 macOS 环境实测**；首次打开请按包内 `macOS-README.txt` 完成 ad-hoc 签名 |
 
 > 各文件 SHA-256 见 Release 附件中的 `SHA256SUMS*.txt`。
+
 ## 使用
 
 把单文件 EXE 放到准备用来存放游戏的文件夹中打开。首次可创建离线账号或选择皮肤站登录。游戏保存在同目录的 .minecraft，账号和设置保存在 .starquill-profile。升级时退出旧程序，将新 EXE 放回原目录。
@@ -59,5 +60,7 @@ npm run dist -- --config.directories.output=dist
 ```
 
 构建可通过 NHMCL_CURSEFORGE_API_KEY 注入项目凭据。发行构建将凭据加密保存，客户端加密不能防止逆向提取。账号、令牌、个人设置与游戏目录不纳入源码仓库。
+
+多平台构建（Linux / macOS）的详细步骤见 [构建说明](docs/BUILD.md)。
 
 [整合包说明](docs/GTNH-AND-CLEANROOM.md) · [Java、内存与崩溃诊断](docs/MEMORY-AND-CRASH.md) · [离线包](docs/OFFLINE-PACK.md) · [历史 Beta 目录](old-versions/) · [第三方组件许可](THIRD-PARTY-NOTICES.txt)
