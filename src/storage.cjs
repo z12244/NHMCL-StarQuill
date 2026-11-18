@@ -64,7 +64,7 @@ function repairEmbeddedProfile(raw) {
   // Older StarQuill exports collapsed Mojang's platform-specific variants to the last (macOS) entry.
   if(raw.starQuill.game==='1.12.2' && raw.libraries.some(l=>l.name==='org.lwjgl.lwjgl:lwjgl:2.9.2-nightly-20140822')) {
     const groups=libraryGroups(raw.libraries);
-    const missing=require('../assets/lwjgl-1.12.2.json').filter(l=>{
+    const missing=require('./assets/lwjgl-1.12.2.json').filter(l=>{
       const existing=groups.get(libraryKey(l));
       return existing?.length===1 && existing[0].name.endsWith(':2.9.2-nightly-20140822') &&
         existing[0].rules?.length===1 && existing[0].rules[0].action==='allow' && existing[0].rules[0].os?.name==='osx';

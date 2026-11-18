@@ -172,7 +172,7 @@ app.whenReady().then(async()=>{
   try{const receipt=JSON.parse(await fs.readFile(path.join(home(),'welcome.json'),'utf8'));welcomeNeeded=receipt.completedOn===os.hostname()?false:safeStorage.decryptString(Buffer.from(receipt.receipt,'base64'))!==('starquill-welcome-v1:'+os.hostname());}catch{welcomeNeeded=true;}
   if(accounts.accounts.some(a=>a.type==='authlib'))welcomeNeeded=false;
   // Match the supplied HMCL window's saved logical size, independent of DPI.
-  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.setBounds(launcherBounds(settings.windows,screen.getDisplayMatching(win.getBounds()).workArea,win.getBounds()));
   gameVisibility=require('./game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
   win.once('closed',()=>gameVisibility.stop());
@@ -277,7 +277,7 @@ ipcMain.handle('account-skin-model',async(_,input)=>{
       if(model==='slim'&&bytes.readUInt32BE(20)!==64)throw Error('纤细手臂需要 64×64 皮肤');
       skin={...skin,model};
     }else{
-      skin=await importSkin(settings.root,path.join(__dirname,'..','assets',model==='slim'?'alex.png':'steve.png'),model);
+      skin=await importSkin(settings.root,path.join(__dirname,'assets',model==='slim'?'alex.png':'steve.png'),model);
     }
     await accounts.put({...account,skin});return changedAccounts();
   }finally{busy=false;}

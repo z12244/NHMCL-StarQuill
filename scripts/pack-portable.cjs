@@ -34,7 +34,7 @@ async function packPortable({directory, artifact, bundle, temp, project}) {
   const result = spawnSync(path.join(nsis,'makensis.exe'), [
     '/V2','/INPUTCHARSET','UTF8','/DARTIFACT='+artifact,'/DAPP_DIR='+directory,
     '/DCACHE_ID='+cacheId,'/DCHECK_FILES='+checks,'/DNUMERIC_VERSION='+numeric,
-    '/DDISPLAY_VERSION='+project.displayVersion,'/DICON='+path.join(root,'assets/icon.ico'),
+    '/DDISPLAY_VERSION='+project.displayVersion,'/DICON='+path.join(root,'src/assets/icon.ico'),
     '/DSTD_UTILS='+path.join(path.dirname(require.resolve('app-builder-lib/package.json')),'templates/nsis/include/StdUtils.nsh'),
     path.join(__dirname,'portable-cache.nsi')
   ], {

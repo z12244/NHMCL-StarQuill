@@ -51,7 +51,7 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "assets/icon.ico",
+      "icon": "src/assets/icon.ico",
       "signExecutable": false
     },
     "portable": {

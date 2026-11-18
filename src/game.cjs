@@ -40,7 +40,7 @@ async function supplyLegacyLoggingConfig(descriptor, file, downloads) {
       (descriptor.size != null && descriptor.size !== 966)) return;
   if (await downloads.valid({...descriptor, file})) return;
   let bytes;
-  try { bytes = await fs.readFile(path.join(__dirname, '..', 'assets', 'log_configs', 'client-1.7.xml')); }
+  try { bytes = await fs.readFile(path.join(__dirname, 'assets', 'log_configs', 'client-1.7.xml')); }
   catch (error) { if (error.code === 'ENOENT') return; throw error; }
   if (crypto.createHash('sha1').update(bytes).digest('hex') !== sha1) return;
   downloads.checkAbort();

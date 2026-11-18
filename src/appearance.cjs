@@ -59,7 +59,7 @@ async function cachedAppearance(root,a){
 }
 async function defaultAppearance(a){
   const model=a.skin?.model==='slim'?'slim':'default',name=model==='slim'?'Alex':'Steve';
-  return {skin:png(await fs.readFile(path.join(__dirname,'..','assets',name.toLowerCase()+'.png'))),cape:null,model,default:true,name};
+  return {skin:png(await fs.readFile(path.join(__dirname,'assets',name.toLowerCase()+'.png'))),cape:null,model,default:true,name};
 }
 const warn=(result,text)=>({...result,warning:result.warning?result.warning+'；'+text:text});
 async function appearance(root,a,fetcher=fetch,options={}){
