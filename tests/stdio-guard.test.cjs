@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),{EventEmitter}=require('node:events');
-const {guard}=require('../stdio-guard.cjs');
+const {guard}=require('../src/stdio-guard.cjs');
 test('closed output pipes do not crash on synchronous writes or emitted errors',async()=>{
   const stream=new EventEmitter();stream.write=()=>{throw Object.assign(Error('broken pipe'),{code:'EPIPE'});};
   guard(stream);guard(stream);assert.equal(stream.listenerCount('error'),1);

@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {Resources,compatibleCF,compatibleMR}=require('../resources.cjs');
+const {Resources,compatibleCF,compatibleMR}=require('../src/resources.cjs');
 test('locked pack files accept legacy missing loader tags but reject explicit conflicts and wrong game versions',async()=>{
  const target={game:'1.7.10',loader:'forge',pinned:true};
  assert.equal(compatibleCF({gameVersions:['1.7.10']},'mod',target),true);

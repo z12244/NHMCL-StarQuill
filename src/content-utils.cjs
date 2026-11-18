@@ -1,6 +1,6 @@
 const fs=require('node:fs/promises'),path=require('node:path');
 const {under,versionName}=require('./storage.cjs');
-const UA='NHMCL-StarQuill/'+require('./package.json').displayVersion+' (StarQuill_z12244; Minecraft launcher)';
+const UA='NHMCL-StarQuill/'+require('../package.json').displayVersion+' (StarQuill_z12244; Minecraft launcher)';
 function transientNetworkError(error){
  const message=[error?.message,error?.cause?.code,error?.cause?.message].join(' ');
  return error?.name==='TimeoutError'||/fetch failed|failed to fetch|下载连接超时|网络连接已中断|ECONNRESET|ETIMEDOUT|EAI_AGAIN|socket hang up|net::ERR_(?:CONNECTION_(?:RESET|CLOSED|TIMED_OUT)|TIMED_OUT|NETWORK_CHANGED|HTTP2_PROTOCOL_ERROR)|HTTP (?:408|502|503|504)\b/i.test(message);

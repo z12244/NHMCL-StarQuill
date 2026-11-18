@@ -1,4 +1,4 @@
-const test=require('node:test'),assert=require('node:assert/strict'),{discover}=require('../pack-discovery.cjs');
+const test=require('node:test'),assert=require('node:assert/strict'),{discover}=require('../src/pack-discovery.cjs');
 const feed='<rss><item><link>https://modrinth.com/modpack/example</link></item></rss>';
 function mock(title){return async url=>new Response(url.includes('bing.com')?feed:url.includes('bbsmc')?'{"hits":[]}':url.endsWith('/version')?JSON.stringify([{id:'v1',version_type:'release',files:[{filename:'Pack.mrpack',url:'https://cdn.modrinth.com/a',hashes:{sha512:'1'.repeat(128)}}]}]):JSON.stringify({project_type:'modpack',title,slug:'example'}));}
 test('web discovery can resolve a previously unindexed Chinese title through a web result and release API',async()=>{const r=await discover({value:'未编目的测试包'},mock('未编目的测试包'));assert.equal(r.file.original,'Pack.mrpack')});

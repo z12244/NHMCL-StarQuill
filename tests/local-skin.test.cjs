@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
-const {importSkin,readSkin,startSkinServer}=require('../skins.cjs');
-const {offlineUUID}=require('../game.cjs');
+const {importSkin,readSkin,startSkinServer}=require('../src/skins.cjs');
+const {offlineUUID}=require('../src/game.cjs');
 async function temp(t){const folder=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-local-skin-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));return folder;}
 test('local PNG is copied into portable cache, retains selected model and survives removal of original',async t=>{
  const root=await temp(t),file=path.join(root,'自定义皮肤.png'),png=await fs.readFile(path.join(__dirname,'../assets/alex.png'));

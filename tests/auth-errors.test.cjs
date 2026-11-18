@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {failure}=require('../auth-errors.cjs');
-const {MicrosoftAuth,PROJECT_CLIENT_ID}=require('../accounts.cjs');
+const {failure}=require('../src/auth-errors.cjs');
+const {MicrosoftAuth,PROJECT_CLIENT_ID}=require('../src/accounts.cjs');
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status});
 function chain(last){return async(url,options)=>{
   if(url.includes('user.auth.xboxlive.com'))return json({Token:'PRIVATE_XBL',DisplayClaims:{xui:[{uhs:'HASH'}]}});

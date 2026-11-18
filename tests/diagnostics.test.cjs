@@ -1,9 +1,9 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const Zip=require('adm-zip');
-const {memorySnapshot,optimizeMemory}=require('../memory.cjs');
-const {redact}=require('../core.cjs');
-const {logBuffer,analyzeCrash,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latestCrash}=require('../crash-reports.cjs');
+const {memorySnapshot,optimizeMemory}=require('../src/memory.cjs');
+const {redact}=require('../src/core.cjs');
+const {logBuffer,analyzeCrash,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latestCrash}=require('../src/crash-reports.cjs');
 
 test('memory snapshot reads live values and clamps available bytes',()=>{
   const system={totalmem:()=>16*1024**3,freemem:()=>3*1024**3};
@@ -45,7 +45,7 @@ test('session logs retain a bounded tail',()=>{
 });
 test('decode split Windows Java bytes and UTF-8 mod output; recognize missing entry point',async()=>{
   const {Readable}=require('node:stream'),{once}=require('node:events');
-  const {pipeJavaLog}=require('../java-output.cjs');
+  const {pipeJavaLog}=require('../src/java-output.cjs');
   const stream=Readable.from([Buffer.from([0xb4]),Buffer.from([0xed,0xce,0xf3,10]),Buffer.from('模组✓\n'),Buffer.from('last')]);
   let text='';
   pipeJavaLog(stream,'GBK',line=>{text+=line;});

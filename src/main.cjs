@@ -43,20 +43,20 @@ const externalAuth=new YggdrasilAuth({fetcher});
 let gameVisibility;
 let win,child,busy=false,controller,settings,logs=[],closing=false,gameStopRequested=false,sessionLogs=null,lastCrash=null;
 let welcomeNeeded=true,lastAuthFailure=null;
-function authFailureDetails(error){if(!error.details)return null;lastAuthFailure={time:new Date().toISOString(),clientId:settings.microsoftClientId,version:require('./package.json').displayVersion,...error.details};log('微软登录诊断：'+JSON.stringify(lastAuthFailure));return lastAuthFailure;}
+function authFailureDetails(error){if(!error.details)return null;lastAuthFailure={time:new Date().toISOString(),clientId:settings.microsoftClientId,version:require('../package.json').displayVersion,...error.details};log('微软登录诊断：'+JSON.stringify(lastAuthFailure));return lastAuthFailure;}
 const appearanceSync=new Map(),appearanceResults=new Map();
 let state={phase:'idle',text:'准备就绪',percent:0};
 const settingsAccount=()=>accounts.accounts.find(a=>a.id===accounts.active)||{name:'Guest',type:'offline'};
 const home=()=>path.join(portable(),'.starquill-profile');
 const linuxData = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(),'.local','share'), 'NHMCL-StarQuill');
-const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : null) ||(app.isPackaged?path.dirname(process.execPath):__dirname);
+const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : null) ||(app.isPackaged?path.dirname(process.execPath):path.join(__dirname,'..'));
 const {SharedLogins,windowsUserStorage}=require('./shared-logins.cjs');
 const systemLoginDir=process.platform==='linux' ? linuxData : path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'NHMCL-StarQuill');
-const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:__dirname,'tools','user-storage-key.exe');
+const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools','user-storage-key.exe');
 let loginDatabase;
 function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform==='linux' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
 const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
-const bundled=()=>runtimePath(process.resourcesPath,__dirname,app.isPackaged);
+const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..'),app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
 function status(phase,text,percent=0){state={phase,text,percent:Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):0};send('state',state);}
 function cleanLog(text){let clean=market?.redact(redact(text))||redact(text);for(const a of [...(accounts?.accounts||[]),externalSession].filter(Boolean))for(const key of ['accessToken','refreshToken','clientToken'])if(a.tokens?.[key])clean=clean.replaceAll(a.tokens[key],'[redacted]');return clean;}
@@ -82,8 +82,8 @@ function queueAccountAppearance(account,force=false){
   appearanceSync.set(key,{promise,controller,force});return promise;
 }
 function stopSkin(){skinServer?.close();skinServer=null;}
-function engine(extra={}){return new Game({...settings,toolsDir:path.join(app.isPackaged?process.resourcesPath:__dirname,'tools'),java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
-const agentFile=()=>path.join(app.isPackaged?process.resourcesPath:__dirname,'tools','authlib-injector-1.2.8.jar');
+function engine(extra={}){return new Game({...settings,toolsDir:path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools'),java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
+const agentFile=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools','authlib-injector-1.2.8.jar');
 async function discardExternal(){clearTimeout(externalTimer);const old=externalSession;externalSession=null;if(old)await externalAuth.invalidate(old).catch(()=>{});}
 const runJob=async(fn,title)=>{requireIdle();busy=true;controller=new AbortController();status('preparing',title);try{const result=await fn(controller.signal);status('idle','准备就绪');return result;}catch(e){log(e.message);status('error',e.message);throw e;}finally{busy=false;controller=null;}};
 registerInstances({ipcMain,dialog,shell,persist,window:()=>win,settings:()=>settings,idle:requireIdle,job:runJob,changed:async()=>send('instances-changed',await local())});
@@ -172,9 +172,9 @@ app.whenReady().then(async()=>{
   try{const receipt=JSON.parse(await fs.readFile(path.join(home(),'welcome.json'),'utf8'));welcomeNeeded=receipt.completedOn===os.hostname()?false:safeStorage.decryptString(Buffer.from(receipt.receipt,'base64'))!==('starquill-welcome-v1:'+os.hostname());}catch{welcomeNeeded=true;}
   if(accounts.accounts.some(a=>a.type==='authlib'))welcomeNeeded=false;
   // Match the supplied HMCL window's saved logical size, independent of DPI.
-  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.setBounds(launcherBounds(settings.windows,screen.getDisplayMatching(win.getBounds()).workArea,win.getBounds()));
-  gameVisibility=require('./game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:__dirname,'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
+  gameVisibility=require('./game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
   win.once('closed',()=>gameVisibility.stop());
   win.removeMenu();
   win.on('app-command',(event,command)=>{if(command==='browser-backward'){event.preventDefault();send('navigate-back');}});
@@ -204,7 +204,7 @@ app.whenReady().then(async()=>{
 });
 app.on('before-quit',()=>{closing=true;gameVisibility?.stop();loginController?.abort();externalController?.abort();clearTimeout(externalTimer);controller?.abort();for(const job of appearanceSync.values())job.controller.abort();stopSkin();});
 app.on('window-all-closed',()=>app.quit());
-ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('./package.json').displayVersion||app.getVersion()}));
+ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('../package.json').displayVersion||app.getVersion()}));
 ipcMain.handle('versions',async(_,force=false)=>catalog.refresh(force===true));
 ipcMain.handle('instances',()=>local());
 ipcMain.handle('window-control',(event,command)=>{if(event.sender!==win?.webContents||!['minimize','close'].includes(command))return false;if(command==='minimize')win.minimize();else win.close();return true;});
@@ -277,7 +277,7 @@ ipcMain.handle('account-skin-model',async(_,input)=>{
       if(model==='slim'&&bytes.readUInt32BE(20)!==64)throw Error('纤细手臂需要 64×64 皮肤');
       skin={...skin,model};
     }else{
-      skin=await importSkin(settings.root,path.join(__dirname,'assets',model==='slim'?'alex.png':'steve.png'),model);
+      skin=await importSkin(settings.root,path.join(__dirname,'..','assets',model==='slim'?'alex.png':'steve.png'),model);
     }
     await accounts.put({...account,skin});return changedAccounts();
   }finally{busy=false;}

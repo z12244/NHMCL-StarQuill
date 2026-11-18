@@ -21,7 +21,7 @@
   const bottom=document.createElement('div');bottom.className='ref-home-bottom';
   const versionGroup=document.createElement('div');versionGroup.className='ref-home-version';
   const versionLabel=document.createElement('label');versionLabel.htmlFor='version';versionLabel.textContent='当前版本';versionLabel.className='ref-home-current-label';
-  const versionIcon=document.createElement('img');versionIcon.className='ref-home-version-icon';versionIcon.src='assets/icon.png';versionIcon.alt='';
+  const versionIcon=document.createElement('img');versionIcon.className='ref-home-version-icon';versionIcon.src='../assets/icon.png';versionIcon.alt='';
   const versionCopy=document.createElement('div');versionCopy.className='ref-home-version-copy';
   const versionMeta=document.createElement('small');versionMeta.id='ref-home-version-meta';versionMeta.textContent='尚未安装游戏';
   versionCopy.append($('version'),versionMeta);
@@ -78,7 +78,7 @@
     if (!force&&id===versionKey&&lastInfo) {showSummary(lastInfo);return;}
     const ticket=++versionTicket;
     versionKey=id;lastInfo=null;showSummary(null);
-    if(!id){versionIcon.src='assets/icon.png';return;}
+    if(!id){versionIcon.src='../assets/icon.png';return;}
     try {
       const info=await launcher.instanceInfo(id);
       if(ticket!==versionTicket)return;
@@ -86,10 +86,10 @@
     }catch{/* Invalid/incomplete local versions retain the normal list/error handling. */}
     try {
       const source=launcher.instanceIcon?await launcher.instanceIcon(id):null;
-      if(ticket===versionTicket)versionIcon.src=source||'assets/icon.png';
-    }catch{if(ticket===versionTicket)versionIcon.src='assets/icon.png';}
+      if(ticket===versionTicket)versionIcon.src=source||'../assets/icon.png';
+    }catch{if(ticket===versionTicket)versionIcon.src='../assets/icon.png';}
   }
-  versionIcon.addEventListener('error',()=>{if(!versionIcon.src.endsWith('/assets/icon.png'))versionIcon.src='assets/icon.png';});
+  versionIcon.addEventListener('error',()=>{if(!versionIcon.src.endsWith('/assets/icon.png'))versionIcon.src='../assets/icon.png';});
   function schedule(force=false){if(force)lastInfo=null;if(scheduled)return;scheduled=true;queueMicrotask(()=>{scheduled=false;refreshSummary(force);});}
   $('version').addEventListener('change',()=>schedule(true));
   new MutationObserver(()=>schedule()).observe($('version'),{childList:true,attributes:true,attributeFilter:['disabled']});

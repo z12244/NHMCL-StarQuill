@@ -2,7 +2,7 @@ const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),native=require('node:fs'),path=require('node:path'),os=require('node:os');
 const yazl=require('yazl');
-const {inspectPackArchive,composePatches,mavenPath}=require('../pack-formats.cjs');
+const {inspectPackArchive,composePatches,mavenPath}=require('../src/pack-formats.cjs');
 async function zip(t,items){const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-format-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));const file=path.join(root,'arbitrary-name.zip'),archive=new yazl.ZipFile();for(const [name,body]of Object.entries(items))archive.addBuffer(Buffer.from(typeof body==='object'&&!Buffer.isBuffer(body)?JSON.stringify(body):body),name);archive.end();await new Promise((resolve,reject)=>{const output=native.createWriteStream(file);output.on('finish',resolve);output.on('error',reject);archive.outputStream.on('error',reject);archive.outputStream.pipe(output);});return file;}
 const client={url:'https://launcher.mojang.com/v1/objects/0123456789012345678901234567890123456789/client.jar',sha1:'0123456789012345678901234567890123456789',size:10};
 const assetIndex={id:'1.7.10',url:'https://piston-meta.mojang.com/1.7.10.json',sha1:'0123456789012345678901234567890123456789',size:10};

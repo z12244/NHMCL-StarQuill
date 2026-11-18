@@ -1,7 +1,7 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {skinCardAddress}=require('../launcher-drops.cjs');
-const {endpoint,actionFrom,scrub}=require('../ai-assistant.cjs');
-const {installTarget,matchResource}=require('../assistant-install.cjs');
+const {skinCardAddress}=require('../src/launcher-drops.cjs');
+const {endpoint,actionFrom,scrub}=require('../src/ai-assistant.cjs');
+const {installTarget,matchResource}=require('../src/assistant-install.cjs');
 test('JEI exact project wins over the encyclopedia alias of JEI++',()=>{
   const cmd={kind:'mod',value:'JEI'};
   const candidates=['jei-plus-plus','jei'].map(slug=>({slug,kind:'mod',source:'modrinth'}));

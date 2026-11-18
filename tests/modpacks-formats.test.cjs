@@ -2,10 +2,10 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),native=require('node:fs'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
 const yazl=require('yazl');
-const {Modpacks}=require('../modpacks.cjs');
-const {layout,scan,writeJSON,readJSON,resolveVersion}=require('../storage.cjs');
-const {hashFile}=require('../downloads.cjs');
-const {memoryLimit}=require('../java.cjs');
+const {Modpacks}=require('../src/modpacks.cjs');
+const {layout,scan,writeJSON,readJSON,resolveVersion}=require('../src/storage.cjs');
+const {hashFile}=require('../src/downloads.cjs');
+const {memoryLimit}=require('../src/java.cjs');
 
 const game='1.7.10',forge='10.13.4.1614';
 const client=Buffer.from('synthetic Minecraft client'),library=Buffer.from('synthetic bundled bootstrap');

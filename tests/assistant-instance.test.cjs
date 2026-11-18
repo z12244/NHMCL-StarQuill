@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
-const {versionRequest,ensureInstance}=require('../assistant-instance.cjs');
-const {createAssistant}=require('../ai-assistant.cjs');
+const {versionRequest,ensureInstance}=require('../src/assistant-instance.cjs');
+const {createAssistant}=require('../src/ai-assistant.cjs');
 test('Chinese install commands work independently of model wording',async()=>{
  const ai=createAssistant({online:()=>true,fetcher:()=>{throw Error('unexpected network')}});
  for(const [prompt,game,loader,mod] of [['帮我安装1.21.1版本','1.21.1','',''],['帮我下载1.12.2forge','1.12.2','forge',''],['下载一个1.21.1带有forge的机械动力模组','1.21.1','forge','机械动力']]){

@@ -2,8 +2,8 @@ const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'), path=require('node:path'), os=require('node:os'), crypto=require('node:crypto');
 const Zip=require('adm-zip');
-const {ContentInstaller}=require('../content-install.cjs');
-const {readModMetadata}=require('../mod-metadata.cjs');
+const {ContentInstaller}=require('../src/content-install.cjs');
+const {readModMetadata}=require('../src/mod-metadata.cjs');
 
 function jar(ownIds, dependency, legacyForge=false) {
   const z=new Zip();

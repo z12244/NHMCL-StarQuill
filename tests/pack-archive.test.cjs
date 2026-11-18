@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
 const yazl=require('yazl');
-const {listArchive,readArchiveFiles,extractArchiveFiles,crc32}=require('../pack-archive.cjs');
+const {listArchive,readArchiveFiles,extractArchiveFiles,crc32}=require('../src/pack-archive.cjs');
 async function temp(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-archive-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));return root;}
 async function archive(file,items){const zip=new yazl.ZipFile();for(const [name,body,options] of items)zip.addBuffer(Buffer.from(body),name,options);zip.end();await new Promise((resolve,reject)=>{const output=require('node:fs').createWriteStream(file);output.on('error',reject);output.on('finish',resolve);zip.outputStream.on('error',reject);zip.outputStream.pipe(output);});}
 function renameEntries(buffer,from,to){assert.equal(Buffer.byteLength(from),Buffer.byteLength(to));let at=0,count=0;while((at=buffer.indexOf(Buffer.from(from),at))>=0){Buffer.from(to).copy(buffer,at);at+=Buffer.byteLength(to);count++;}assert.ok(count>=2);return buffer;}

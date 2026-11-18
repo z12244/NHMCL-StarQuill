@@ -1,8 +1,8 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
-const {Resources}=require('../resources.cjs');
-const {ResourceSearch}=require('../resource-search.cjs');
-const {matchProjects}=require('../addon-index.cjs');
+const {Resources}=require('../src/resources.cjs');
+const {ResourceSearch}=require('../src/resource-search.cjs');
+const {matchProjects}=require('../src/addon-index.cjs');
 
 test('modpack aliases, Chinese names and mod acronyms resolve within their own registry',()=>{
   for(const query of ['GTNH','格雷科技新视野','GT: New Horizons'])assert.equal(matchProjects(query,'modpack')[0].entry.cf,'gt-new-horizons');

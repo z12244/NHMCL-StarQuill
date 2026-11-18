@@ -18,10 +18,10 @@
   list.append(listTitle,rows,count);columns.append(list,detail);host.replaceChildren(columns);
   function fitNames(){for(const label of rows.querySelectorAll('.library-name b')){label.style.removeProperty('font-size');const base=parseFloat(getComputedStyle(label).fontSize);if(label.scrollWidth>label.clientWidth)label.style.fontSize=Math.max(11,Math.floor(base*label.clientWidth/label.scrollWidth*10)/10)+'px';}}
   new ResizeObserver(()=>requestAnimationFrame(fitNames)).observe(columns);
-  function avatar(id,title){const wrap=node('span','library-avatar');wrap.setAttribute('aria-hidden','true');const image=node('img');image.alt='';image.src=icons.get(id)||'assets/icon.png';image.dataset.versionIcon=id;image.onerror=()=>{if(image.getAttribute('src')!=='assets/icon.png')image.src='assets/icon.png';};wrap.append(image);loadIcon(id);return wrap;}
+  function avatar(id,title){const wrap=node('span','library-avatar');wrap.setAttribute('aria-hidden','true');const image=node('img');image.alt='';image.src=icons.get(id)||'../assets/icon.png';image.dataset.versionIcon=id;image.onerror=()=>{if(image.getAttribute('src')!=='../assets/icon.png')image.src='../assets/icon.png';};wrap.append(image);loadIcon(id);return wrap;}
   async function loadIcon(id){
     if(icons.has(id)||pendingIcons.has(id)||typeof api.instanceIcon!=='function')return;
-    const root=settings.root,epoch=iconEpoch,promise=api.instanceIcon(id).then(src=>{if(settings.root!==root||epoch!==iconEpoch)return;if(typeof src==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(src))icons.set(id,src);else icons.set(id,'assets/icon.png');for(const image of host.querySelectorAll('img[data-version-icon]'))if(image.dataset.versionIcon===id)image.src=icons.get(id);}).catch(()=>{}).finally(()=>{if(pendingIcons.get(id)===promise)pendingIcons.delete(id);});
+    const root=settings.root,epoch=iconEpoch,promise=api.instanceIcon(id).then(src=>{if(settings.root!==root||epoch!==iconEpoch)return;if(typeof src==='string'&&/^data:image\/(png|jpeg|webp);base64,/i.test(src))icons.set(id,src);else icons.set(id,'../assets/icon.png');for(const image of host.querySelectorAll('img[data-version-icon]'))if(image.dataset.versionIcon===id)image.src=icons.get(id);}).catch(()=>{}).finally(()=>{if(pendingIcons.get(id)===promise)pendingIcons.delete(id);});
     pendingIcons.set(id,promise);
   }
   async function act(fn){try{await fn();}catch(error){toast(error.message);log(error.message);}}

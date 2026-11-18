@@ -58,8 +58,8 @@
     text('ref-log-state',$('state-text')?.textContent||'准备就绪');text('ref-log-version',$('version')?.selectedOptions[0]?.textContent||'未选择版本');text('ref-log-java',$('runtime-label')?.textContent||'自动匹配');text('ref-log-memory',($('memory-label')?.textContent||'—')+' GB');
     const empty=$('ref-account-empty');if(empty)empty.hidden=!!$('account-list')?.childElementCount;
     let account;try{account=activeAccount();}catch{}
-    const avatar=profile.querySelector('.avatar');const src=account?.preview||'assets/steve.png';
-    if(avatar&&avatar.dataset.source!==src){avatar.dataset.source=src;avatar.replaceChildren();const image=node('img');image.src=src;image.alt='';image.className=account?.preview?'ref-bound-skin':'ref-default-skin';image.onerror=()=>{if(!image.src.endsWith('/assets/steve.png'))image.src='assets/steve.png';};avatar.append(image);}
+    const avatar=profile.querySelector('.avatar');const src=account?.preview||'../assets/steve.png';
+    if(avatar&&avatar.dataset.source!==src){avatar.dataset.source=src;avatar.replaceChildren();const image=node('img');image.src=src;image.alt='';image.className=account?.preview?'ref-bound-skin':'ref-default-skin';image.onerror=()=>{if(!image.src.endsWith('/assets/steve.png'))image.src='../assets/steve.png';};avatar.append(image);}
   }
   const queue=()=>{if(!queued){queued=true;requestAnimationFrame(update);}};
   new MutationObserver(queue).observe(document.querySelector('main'),{childList:true,subtree:true,characterData:true,attributes:true,attributeFilter:['class']});

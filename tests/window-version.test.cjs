@@ -1,10 +1,10 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
-const {Game}=require('../game.cjs');
-const {layout,writeJSON}=require('../storage.cjs');
-const {windowSettings,gameWindow,syncGameDisplay}=require('../window-settings.cjs');
-const {InstanceManager}=require('../instance-manager.cjs');
+const {Game}=require('../src/game.cjs');
+const {layout,writeJSON}=require('../src/storage.cjs');
+const {windowSettings,gameWindow,syncGameDisplay}=require('../src/window-settings.cjs');
+const {InstanceManager}=require('../src/instance-manager.cjs');
 
 async function fixture(t){
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-window-test-'));

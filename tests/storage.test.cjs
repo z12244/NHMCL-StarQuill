@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
-const {layout,versionName,under,writeJSON,scan,resolveVersion,merge,migrateLegacy}=require('../storage.cjs');
-const {Game,allowed,expand,offlineUUID}=require('../game.cjs');
+const {layout,versionName,under,writeJSON,scan,resolveVersion,merge,migrateLegacy}=require('../src/storage.cjs');
+const {Game,allowed,expand,offlineUUID}=require('../src/game.cjs');
 async function temp(t){const dir=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-storage-'));t.after(()=>fs.rm(dir,{recursive:true,force:true}));return dir;}
 const sha=b=>crypto.createHash('sha1').update(b).digest('hex');
 test('universal layout isolates game data but shares immutable caches',()=>{const p=layout('C:/Games/.minecraft','1.21.1');assert.equal(p.game,p.version);assert.equal(path.basename(p.assets),'assets');assert.equal(path.dirname(p.version),path.join(p.root,'versions'));assert.equal(layout(p.root,'1.21.1',false).game,p.root);assert.equal(versionName('1.21.1 原版 测试'),'1.21.1 原版 测试');for(const id of ['CON','a/b','..','foo.'])assert.throws(()=>versionName(id));for(const file of ['../escape','/absolute','C:/outside','a\\b'])assert.throws(()=>under(p.root,file));});
