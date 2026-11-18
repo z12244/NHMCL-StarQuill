@@ -32,13 +32,7 @@
     "directories": {
       "output": "dist"
     },
-    "files": [
-      "src/**/*.cjs",
-      "src/**/*.css",
-      "src/**/*.html",
-      "assets/**/*",
-      "THIRD-PARTY-NOTICES.txt"
-    ],
+    "files": ["src/**/*", "THIRD-PARTY-NOTICES.txt"],
     "extraResources": [
       {
         "from": "runtime",
