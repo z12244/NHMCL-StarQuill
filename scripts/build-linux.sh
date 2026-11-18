@@ -5,7 +5,17 @@ cd "$(dirname "$0")/.."
 [[ $(dpkg --print-architecture) == amd64 ]]
 mkdir -p build dist
 archive=${NHMCL_BASE_ASAR:-build/stable-1.0.3.asar}
-echo "74aa2dff74cb7735dfa5f368037f2d5c5b9638571d9560d967915b8d42b2ca23  $archive" | sha256sum --check --status || { echo '需要原版 stable-1.0.3 的 resources/app.asar' >&2; exit 1; }
+if [[ ! -f $archive && -f dist/win-unpacked/resources/app.asar ]]; then
+    mkdir -p "$(dirname "$archive")"
+    cp dist/win-unpacked/resources/app.asar "$archive"
+    echo "已从 dist/win-unpacked/resources/app.asar 复制基线到 $archive"
+fi
+if [[ ! -f $archive ]]; then
+    echo "缺少基线 $archive" >&2
+    echo "请先运行 Windows 构建（npm run dist:win）生成 dist/win-unpacked/resources/app.asar，或从 Release 附件复制为 $archive。详见 docs/BUILD.md" >&2
+    exit 1
+fi
+echo "74aa2dff74cb7735dfa5f368037f2d5c5b9638571d9560d967915b8d42b2ca23  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 stable-1.0.3 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
 electron=build/electron.zip
 url=${ELECTRON_DOWNLOAD_URL:-https://github.com/electron/electron/releases/download/v45.2.2/electron-v45.2.2-linux-x64.zip}
 if [[ ! -f $electron ]]; then curl -fL --retry 3 "$url" -o "$electron.part"; mv "$electron.part" "$electron"; fi

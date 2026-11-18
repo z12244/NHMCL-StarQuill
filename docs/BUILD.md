@@ -21,10 +21,11 @@ npm run dist -- --config.directories.output=dist
 
 ## Linux
 
-`scripts/build-linux.sh` 依赖 `build/stable-1.0.3.asar`，并会校验其 SHA-256（`74aa2dff74cb7735dfa5f368037f2d5c5b9638571d9560d967915b8d42b2ca23`）。该文件不在仓库中，需要先取得：
+`scripts/build-linux.sh` 依赖 `build/stable-1.0.3.asar`，并会校验其 SHA-256（`74aa2dff74cb7735dfa5f368037f2d5c5b9638571d9560d967915b8d42b2ca23`）。该文件不在仓库中：
 
-- 从 Windows 构建产物复制：`dist/win-unpacked/resources/app.asar` → `build/stable-1.0.3.asar`
-- 或从 Release 附件的 `win-unpacked/resources/app.asar` 复制
+- 如果已有 Windows 构建产物，脚本会**自动**把 `dist/win-unpacked/resources/app.asar` 复制到 `build/stable-1.0.3.asar`；
+- 也可以手动从 Release 附件的 `win-unpacked/resources/app.asar` 复制；
+- 或用 `NHMCL_BASE_ASAR=/path/to/app.asar` 指定其他路径。
 
 ```sh
 bash scripts/build-linux.sh
