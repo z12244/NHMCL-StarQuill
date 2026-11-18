@@ -7,8 +7,9 @@
   "main": "src/main.cjs",
   "scripts": {
     "start": "electron .",
-    "dist": "npm run dist:linux",
     "test": "node --test tests/*.test.cjs",
+    "dist": "node scripts/build-windows.cjs",
+    "dist:win": "node scripts/build-windows.cjs",
     "dist:linux": "bash scripts/build-linux.sh"
   },
   "dependencies": {
@@ -29,9 +30,15 @@
     "productName": "NHMCL-StarQuill",
     "artifactName": "NHMCL-StarQuill-stable-1.0.3-win-x64.${ext}",
     "directories": {
-      "output": "../../outputs/NHMCL-StarQuill-releases/stable-1.0.3"
+      "output": "dist"
     },
-    "files": ["src/**/*.cjs", "src/**/*.css", "src/**/*.html", "assets/**/*", "THIRD-PARTY-NOTICES.txt"],
+    "files": [
+      "src/**/*.cjs",
+      "src/**/*.css",
+      "src/**/*.html",
+      "assets/**/*",
+      "THIRD-PARTY-NOTICES.txt"
+    ],
     "extraResources": [
       {
         "from": "runtime",
@@ -55,6 +62,10 @@
   "overrides": {
     "@xmcl/unzip": "2.1.2"
   },
-  "displayVersion": "v1.0.3-linux",
-  "releaseName": "stable-1.0.3-linux"
+  "displayVersion": "v1.0.3",
+  "releaseName": "stable-1.0.3",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/z12244/NHMCL-StarQuill.git"
+  }
 }
