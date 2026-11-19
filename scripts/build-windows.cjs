@@ -3,7 +3,7 @@ const fs = require('node:fs/promises');
 const os = require('node:os');
 const {spawnSync} = require('node:child_process');
 const {getBinFromUrl} = require('app-builder-lib/out/binDownload');
-const {sealProjectKey} = require('../src/project-credential.cjs');
+const {sealProjectKey} = require('../src/shared/project-credential.cjs');
 const project = require('../package.json');
 
 function buildKey() {

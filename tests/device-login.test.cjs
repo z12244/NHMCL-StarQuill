@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
-const {DeviceLogin}=require('../src/device-login.cjs');
+const {DeviceLogin}=require('../src/shared/device-login.cjs');
 const device={user_code:'CODE1234',device_code:'PRIVATE_DEVICE',verification_uri:'https://www.microsoft.com/link',expiresAt:900000};
 test('click presentation copies user code then opens the validated default browser URL',async()=>{
   const calls=[],d=new DeviceLogin({clipboard:{writeText:text=>calls.push(['copy',text])},openExternal:async url=>calls.push(['open',url]),now:()=>0});

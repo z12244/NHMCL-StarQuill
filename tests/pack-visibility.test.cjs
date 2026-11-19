@@ -5,10 +5,10 @@ const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
 const Zip = require('adm-zip');
-const {layout, scan, writeJSON,resolveVersion,readJSON} = require('../src/storage.cjs');
-const {Loaders} = require('../src/loaders.cjs');
-const {Modpacks} = require('../src/modpacks.cjs');
-const {ContentInstaller} = require('../src/content-install.cjs');
+const {layout, scan, writeJSON,resolveVersion,readJSON} = require('../src/shared/storage.cjs');
+const {Loaders} = require('../src/shared/loaders.cjs');
+const {Modpacks} = require('../src/shared/modpacks.cjs');
+const {ContentInstaller} = require('../src/shared/content-install.cjs');
 const {upgrade}=require('../scripts/embed-installed-pack.cjs');
 
 for (const existing of [true, false]) {

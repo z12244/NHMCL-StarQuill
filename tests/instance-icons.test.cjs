@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path');
-const {readInstanceIcon}=require('../src/instance-icons.cjs');
+const {readInstanceIcon}=require('../src/shared/instance-icons.cjs');
 async function temporary(t){const base=path.resolve(__dirname,'tmp');await fs.mkdir(base,{recursive:true});const root=await fs.mkdtemp(path.join(base,'instance-icons-'));t.after(async()=>{assert.equal(path.dirname(root),base);assert.match(path.basename(root),/^instance-icons-/);await fs.rm(root,{recursive:true,force:true});});return root;}
 test('version icons follow each instance and changes on disk',async t=>{
  const root=await temporary(t),a=path.join(root,'versions','A'),b=path.join(root,'versions','B');await fs.mkdir(a,{recursive:true});await fs.mkdir(b,{recursive:true});

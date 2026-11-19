@@ -2,7 +2,7 @@
 body.reference-ui #page-home{position:fixed;left:132px;top:78px;right:0;bottom:0;padding:0;overflow:hidden;z-index:1}
 body.reference-ui #page-home.active{display:block;animation:none}
 body.reference-ui #page-home .ref-home-legacy{display:none}
-body.reference-ui .ref-home-background{position:fixed;inset:0;z-index:-1;background:#f2eee7 url('assets/reference/home-background.jpg') center/100% 100% no-repeat;pointer-events:none}
+body.reference-ui .ref-home-background{position:fixed;inset:0;z-index:-1;background:#f2eee7 url('../assets/reference/home-background.jpg') center/100% 100% no-repeat;pointer-events:none}
 body.reference-ui .ref-home-copy{position:absolute;z-index:1;left:25px;top:10px;color:#151a19;max-width:365px;pointer-events:none}
 body.reference-ui .ref-home-copy h1{font:800 italic 43px/1.12 'STSong','SimSun',serif;letter-spacing:-2px;margin:0}
 body.reference-ui .ref-home-kicker{font-size:9px;line-height:1.5;letter-spacing:1.7px;margin:13px 0 0;white-space:nowrap;color:#222a28}
@@ -17,7 +17,7 @@ body.reference-ui .ref-marker-a{left:56%;top:11%}body.reference-ui .ref-marker-b
 body.reference-ui .ref-home-compass{position:absolute;right:18px;top:0;font-size:12px;line-height:1.5;color:#3b443c;text-align:center}
 body.reference-ui .ref-home-news{position:fixed;left:148px;top:315px;width:328px;height:96px;display:grid;grid-template-columns:minmax(0,1fr) 79px;border:1px solid #c9c7bf;z-index:1}
 body.reference-ui .ref-home-news button{cursor:pointer;border:0;border-radius:0;text-align:left;color:#171c19;box-shadow:none}
-body.reference-ui .ref-home-news-featured{position:relative;background:linear-gradient(0deg,#111b16cc,transparent 85%),url('assets/reference/home-background.jpg') 20.7% 75.8%/334.9% 544.8% no-repeat;padding:24px 15px 9px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff!important;min-width:0;overflow:hidden}
+body.reference-ui .ref-home-news-featured{position:relative;background:linear-gradient(0deg,#111b16cc,transparent 85%),url('../assets/reference/home-background.jpg') 20.7% 75.8%/334.9% 544.8% no-repeat;padding:24px 15px 9px;display:flex;flex-direction:column;justify-content:flex-end;color:#fff!important;min-width:0;overflow:hidden}
 body.reference-ui .ref-home-news-featured span{position:absolute;top:12px;left:14px;background:#f6f2e6;color:#242d25;padding:2px 5px;font-size:8px;font-weight:500}
 body.reference-ui .ref-home-news-featured b{font:bold italic 22px/1.15 Georgia,'Times New Roman',serif;white-space:nowrap;letter-spacing:-.5px}
 body.reference-ui .ref-home-news-featured small{font-size:9px;line-height:1.5;margin-top:3px}

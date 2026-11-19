@@ -4,14 +4,14 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const crypto = require('node:crypto');
-const {effective, portableOverrides, splitArguments, collectorArgs, mergeGameArgs} = require('../src/advanced.cjs');
-const {Downloads} = require('../src/downloads.cjs');
-const {ContentInstaller} = require('../src/content-install.cjs');
-const {sealProjectKey, openProjectKey} = require('../src/project-credential.cjs');
-const {downloadSources} = require('../src/curseforge-access.cjs');
-const {Resources} = require('../src/resources.cjs');
-const {InstanceManager} = require('../src/instance-manager.cjs');
-const {instanceOptions} = require('../src/instance-config.cjs');
+const {effective, portableOverrides, splitArguments, collectorArgs, mergeGameArgs} = require('../src/shared/advanced.cjs');
+const {Downloads} = require('../src/shared/downloads.cjs');
+const {ContentInstaller} = require('../src/shared/content-install.cjs');
+const {sealProjectKey, openProjectKey} = require('../src/shared/project-credential.cjs');
+const {downloadSources} = require('../src/shared/curseforge-access.cjs');
+const {Resources} = require('../src/shared/resources.cjs');
+const {InstanceManager} = require('../src/shared/instance-manager.cjs');
+const {instanceOptions} = require('../src/shared/instance-config.cjs');
 
 async function tree(t) {
   const root = await fs.mkdtemp(path.join(os.tmpdir(),'starquill-advanced-'));

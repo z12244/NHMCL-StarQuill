@@ -7,7 +7,7 @@ function indexFor(kind) {
   if (kind !== 'mod' && kind !== 'modpack') return null;
   if (indexes.has(kind)) return indexes.get(kind);
   const entries = [], bySlug = new Map();
-  const csv = fs.readFileSync(path.join(__dirname, 'assets', 'addon', kind + '.csv'), 'utf8');
+  const csv = fs.readFileSync(path.join(__dirname, '..', 'assets', 'addon', kind + '.csv'), 'utf8');
   for (const line of csv.split(/\r?\n/)) {
     if (!/^\d+,/.test(line)) continue;
     const [id, cf, mr, name, english, abbreviation, modIds = ''] = line.split(',').map(field => field.replaceAll('\\c', ','));

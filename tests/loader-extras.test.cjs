@@ -1,8 +1,8 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
-const {optifineRows,cleanroomRows,checkCombination}=require('../src/loader-extras.cjs');
+const {optifineRows,cleanroomRows,checkCombination}=require('../src/shared/loader-extras.cjs');
 test('Cleanroom offers a hash-pinned release on catalog failure only for 1.12.2',async()=>{
-  const lookup=require('../src/loader-extras.cjs').listCleanroom;
+  const lookup=require('../src/shared/loader-extras.cjs').listCleanroom;
   const failure=async()=>new Response(null,{status:403});
   assert.deepEqual(await lookup(failure,'1.21.1'),[]);
   const [row]=await lookup(failure,'1.12.2');

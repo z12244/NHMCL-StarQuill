@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto');
-const {appearance,cachedAppearance,png}=require('../src/appearance.cjs');
-const {cacheFile}=require('../src/skins.cjs');
+const {appearance,cachedAppearance,png}=require('../src/shared/appearance.cjs');
+const {cacheFile}=require('../src/shared/skins.cjs');
 const role={id:'authlib:site:role',name:'SkinRole',type:'authlib',uuid:'a'.repeat(32),server:{url:'https://skin.example/api/yggdrasil/',name:'Test Skin Site'},tokens:{accessToken:'private-access-token',clientToken:'private-client-token'}};
 const uri=bytes=>'data:image/png;base64,'+bytes.toString('base64');
 async function fixture(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-skin-sync-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));return {root,steve:await fs.readFile(path.join(__dirname,'../src/assets/steve.png')),alex:await fs.readFile(path.join(__dirname,'../src/assets/alex.png'))};}

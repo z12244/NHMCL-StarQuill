@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {createAssistant}=require('../src/ai-assistant.cjs');
+const {createAssistant}=require('../src/shared/ai-assistant.cjs');
 test('saved DeepSeek dashboard URL and ds alias recover without losing the bound credential',async()=>{
  let config={base:'https://platform.deepseek.com/api_keys/chat/completions',model:'ds',secret:'fixture'};
  const db={read:()=>config,transaction:fn=>fn(),put:(_,v)=>{config=v;}};

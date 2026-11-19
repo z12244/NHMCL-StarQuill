@@ -1,11 +1,11 @@
 const {test}=require('node:test');
 const assert=require('node:assert/strict');
 const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
-const {SharedLogins,windowsUserStorage}=require('../src/shared-logins.cjs');
-const {createAssistant}=require('../src/ai-assistant.cjs');
-const {AccountStore}=require('../src/accounts.cjs');
-const {YggdrasilAuth}=require('../src/yggdrasil.cjs');
-const {importConnections}=require('../src/legacy-connections.cjs');
+const {SharedLogins,windowsUserStorage}=require('../src/shared/shared-logins.cjs');
+const {createAssistant}=require('../src/shared/ai-assistant.cjs');
+const {AccountStore}=require('../src/shared/accounts.cjs');
+const {YggdrasilAuth}=require('../src/shared/yggdrasil.cjs');
+const {importConnections}=require('../src/shared/legacy-connections.cjs');
 
 test('Windows user cache persists across copies, retains local accounts and cannot revive cleared sessions',{skip:process.platform!=='win32'},async t=>{
   const temp=await fs.mkdtemp(path.join(os.tmpdir(),'sq-store-'));

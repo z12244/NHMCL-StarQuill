@@ -4,7 +4,7 @@
   "private": true,
   "description": "该启动器由 StarQuill_z12244 发起的 Minecraft 启动器项目。经由南湖模作社参与维护与发行。",
   "author": "StarQuill_z12244 / 南湖模作社",
-  "main": "src/main.cjs",
+  "main": "src/main/main.cjs",
   "scripts": {
     "start": "electron .",
     "test": "node --test tests/*.test.cjs",

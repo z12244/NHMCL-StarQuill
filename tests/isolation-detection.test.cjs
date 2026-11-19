@@ -1,10 +1,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs/promises'), path = require('node:path'), os = require('node:os');
-const {detectIsolation,inferredMode} = require('../src/isolation-detection.cjs');
-const {instanceOptions} = require('../src/instance-config.cjs');
-const {targetInfo} = require('../src/loaders.cjs');
-const {layout,writeJSON} = require('../src/storage.cjs');
+const {detectIsolation,inferredMode} = require('../src/shared/isolation-detection.cjs');
+const {instanceOptions} = require('../src/shared/instance-config.cjs');
+const {targetInfo} = require('../src/shared/loaders.cjs');
+const {layout,writeJSON} = require('../src/shared/storage.cjs');
 
 async function fixture(t,ids){
   const root=await fs.mkdtemp(path.join(os.tmpdir(),'nhmcl-layout-'));

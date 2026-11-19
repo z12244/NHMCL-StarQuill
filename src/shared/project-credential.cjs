@@ -10,11 +10,11 @@ function sealProjectKey(value) {
   const encrypted = Buffer.concat([aes.update(value, 'utf8'), aes.final()]);
   return {wrappingKey, envelope:Buffer.concat([Buffer.from([1]), iv, aes.getAuthTag(), encrypted]).toString('base64')};
 }
-function openProjectKey(encoded = require('../package.json').starQuillProjectCredential, wrappingKey) {
+function openProjectKey(encoded = require('../../package.json').starQuillProjectCredential, wrappingKey) {
   if (!encoded) return '';
   const bytes = Buffer.from(encoded, 'base64');
   if (bytes[0] !== 1 || bytes.length <= 29) throw Error('项目接口配置损坏，请重新下载启动器');
-  const key = wrappingKey || fs.readFileSync(path.join(__dirname,'..','internal','project.bin'));
+  const key = wrappingKey || fs.readFileSync(path.join(__dirname,'..','..','internal','project.bin'));
   const aes = crypto.createDecipheriv('aes-256-gcm', key, bytes.subarray(1,13));
   aes.setAuthTag(bytes.subarray(13,29));
   return Buffer.concat([aes.update(bytes.subarray(29)), aes.final()]).toString('utf8');

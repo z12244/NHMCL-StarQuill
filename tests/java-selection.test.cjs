@@ -1,7 +1,7 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
-const {resolveJavaSelection,validateJavaSelection}=require('../src/java-selection.cjs');
-const {instanceOptions}=require('../src/instance-config.cjs'),{InstanceManager}=require('../src/instance-manager.cjs'),{layout,writeJSON}=require('../src/storage.cjs');
-const runtime=(major,name='',extra={})=>({major,version:String(major)+'.0.1',bits:64,arch:'amd64',path:path.resolve('Java',name||'jdk-'+major,'bin/'+require('../src/platform.cjs').javaBinary),...extra});
+const {resolveJavaSelection,validateJavaSelection}=require('../src/shared/java-selection.cjs');
+const {instanceOptions}=require('../src/shared/instance-config.cjs'),{InstanceManager}=require('../src/shared/instance-manager.cjs'),{layout,writeJSON}=require('../src/shared/storage.cjs');
+const runtime=(major,name='',extra={})=>({major,version:String(major)+'.0.1',bits:64,arch:'amd64',path:path.resolve('Java',name||'jdk-'+major,'bin/'+require('../src/shared/platform.cjs').javaBinary),...extra});
 const settings={javaMode:'auto',java:'',javaMajor:21,memory:2},requirement={min:17,max:26,preferred:21,majors:[17,21,25,26]};
 async function root(t){const folder=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-java-selection-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));return folder;}
 
@@ -24,7 +24,7 @@ test('manual strategy inspects the selected executable and still rejects incompa
  await assert.rejects(resolveJavaSelection({settings:manual,required:requirement,inspect:async()=>({...selected,bits:32})}),/64 位 Java/);
 });
 test('version-folder strategy scans only the target instance and never falls back to an external installed runtime',async t=>{
- const folder=await root(t),id='中文 整合包',inside=path.join(layout(folder,id).version,'runtime/jdk-25/bin/'+require('../src/platform.cjs').javaBinary);let roots;
+ const folder=await root(t),id='中文 整合包',inside=path.join(layout(folder,id).version,'runtime/jdk-25/bin/'+require('../src/shared/platform.cjs').javaBinary);let roots;
  const selected=await resolveJavaSelection({root:folder,id,settings:{...settings,javaMode:'folder'},required:requirement,items:[runtime(21)],scan:async options=>{roots=options.roots;return [runtime(21),runtime(25,'local',{path:inside})];}});
  assert.equal(selected.path,inside);assert.deepEqual(roots,[layout(folder,id).version]);
  await assert.rejects(resolveJavaSelection({root:folder,id,settings:{...settings,javaMode:'folder'},required:requirement,items:[runtime(21)],scan:async()=>[runtime(21)]}),/版本文件夹内未找到/);
@@ -40,7 +40,7 @@ test('instance Java strategy defaults to global inheritance and saves a compatib
  await assert.rejects(manager.save(id,{...input,javaMode:'major',javaMajor:7}),/主版本/);
 });
 test('offline imported Java remains selected in automatic mode while an explicit folder strategy takes precedence',async t=>{
- const folder=await root(t),id='Portable',portableJava='runtime/starquill-pack-123456789abc/bin/'+require('../src/platform.cjs').javaBinary;
+ const folder=await root(t),id='Portable',portableJava='runtime/starquill-pack-123456789abc/bin/'+require('../src/shared/platform.cjs').javaBinary;
  await writeJSON(path.join(layout(folder,id).version,'.starquill-settings.json'),{javaMode:'auto',portableJava});
  const original=await instanceOptions(folder,id,settings);assert.equal(original.javaMode,'manual');assert.equal(original.java,path.join(folder,...portableJava.split('/')));
  await writeJSON(path.join(layout(folder,id).version,'.starquill-settings.json'),{javaMode:'folder',portableJava});const explicit=await instanceOptions(folder,id,settings);assert.equal(explicit.javaMode,'folder');

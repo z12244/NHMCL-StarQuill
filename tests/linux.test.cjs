@@ -3,10 +3,10 @@ const assert = require('node:assert/strict');
 const fs = require('node:fs/promises');
 const os = require('node:os');
 const path = require('node:path');
-const {libraryFiles} = require('../src/game.cjs');
-const {layout,writeJSON} = require('../src/storage.cjs');
-const {InstanceManager} = require('../src/instance-manager.cjs');
-const {scanJava} = require('../src/java.cjs');
+const {libraryFiles} = require('../src/shared/game.cjs');
+const {layout,writeJSON} = require('../src/shared/storage.cjs');
+const {InstanceManager} = require('../src/shared/instance-manager.cjs');
+const {scanJava} = require('../src/shared/java.cjs');
 
 test('Linux chooses its native classifier and excludes Windows-only libraries',()=>{
   const paths = layout(os.tmpdir(),'test');

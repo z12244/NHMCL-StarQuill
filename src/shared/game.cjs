@@ -40,7 +40,7 @@ async function supplyLegacyLoggingConfig(descriptor, file, downloads) {
       (descriptor.size != null && descriptor.size !== 966)) return;
   if (await downloads.valid({...descriptor, file})) return;
   let bytes;
-  try { bytes = await fs.readFile(path.join(__dirname, 'assets', 'log_configs', 'client-1.7.xml')); }
+  try { bytes = await fs.readFile(path.join(__dirname, '..', 'assets', 'log_configs', 'client-1.7.xml')); }
   catch (error) { if (error.code === 'ENOENT') return; throw error; }
   if (crypto.createHash('sha1').update(bytes).digest('hex') !== sha1) return;
   downloads.checkAbort();
@@ -91,7 +91,7 @@ class Game {
     const account=o.account||{type:'offline',name:o.name,uuid:offlineUUID(o.name)};
     const online=account.type==='microsoft',external=account.type==='authlib',authenticated=online||external;if(authenticated&&!account.tokens?.accessToken)throw Error('账号登录已失效，请重新登录');
     const display=o.display||gameWindow(o.windows);
-    const variables={natives_directory:p.natives,launcher_name:'NHMCL-StarQuill',launcher_version:require('../package.json').displayVersion,classpath,classpath_separator:path.delimiter,library_directory:p.libraries,
+    const variables={natives_directory:p.natives,launcher_name:'NHMCL-StarQuill',launcher_version:require('../../package.json').displayVersion,classpath,classpath_separator:path.delimiter,library_directory:p.libraries,
       auth_player_name:account.name,auth_uuid:account.uuid,auth_access_token:authenticated?account.tokens.accessToken:'0',auth_session:authenticated?`token:${account.tokens.accessToken}:${account.uuid}`:'0',user_type:online?'msa':external?'mojang':'legacy',user_properties:'{}',auth_xuid:online?account.tokens.xuid:'0',clientid:online?account.clientId:'0',
       version_name:o.version,version_type:meta.type||'custom',game_directory:p.game,assets_root:p.assets,assets_index_name:assetIndex||'legacy',game_assets:gameAssets,resolution_width:display.width,resolution_height:display.height};
     let jvm=expand(meta.arguments?.jvm,variables);
@@ -103,7 +103,7 @@ class Game {
     if(loggingFile&&logging.argument)jvm.push(logging.argument.replace('${path}',loggingFile));
     const gameArgs=meta.minecraftArguments?expand(splitLegacy(meta.minecraftArguments),variables):expand(meta.arguments?.game,variables);
     if(!meta.mainClass)throw Error('版本缺少 mainClass，无法启动');
-    const major=Number.isInteger(o.javaMajor)?o.javaMajor:requiredJava(meta), toolsDir=o.toolsDir||path.join(__dirname,'..','tools');
+    const major=Number.isInteger(o.javaMajor)?o.javaMajor:requiredJava(meta), toolsDir=o.toolsDir||path.join(__dirname,'..','..','tools');
     const custom=advanced.splitArguments(options.jvmArgs);
     const gc=advanced.collectorArgs(options.gc,major,custom);
     if(gc.length||custom.some(v=>advanced.collector.test(v)))jvm=jvm.filter(v=>!advanced.collector.test(v));

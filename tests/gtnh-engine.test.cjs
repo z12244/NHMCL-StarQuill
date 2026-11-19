@@ -1,6 +1,6 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
-const {javaRequirement,requiredJava,javaCompatible,describeJava,chooseJava}=require('../src/java.cjs');
-const {Game,libraryFiles}=require('../src/game.cjs'),{Loaders,targetInfo,loaderInfo,forgeArtifactVersion}=require('../src/loaders.cjs'),{layout,writeJSON}=require('../src/storage.cjs'),{InstanceManager}=require('../src/instance-manager.cjs');
+const {javaRequirement,requiredJava,javaCompatible,describeJava,chooseJava}=require('../src/shared/java.cjs');
+const {Game,libraryFiles}=require('../src/shared/game.cjs'),{Loaders,targetInfo,loaderInfo,forgeArtifactVersion}=require('../src/shared/loaders.cjs'),{layout,writeJSON}=require('../src/shared/storage.cjs'),{InstanceManager}=require('../src/shared/instance-manager.cjs');
 const modern={min:17,max:26,preferred:21,majors:[17,21,25,26]};
 const runtime=(major,bundled=false)=>({major,bundled,version:major+'.0.1',bits:64,arch:'amd64',path:'unused'});
 async function tree(t){const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-gtnh-engine-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));return root;}
@@ -16,11 +16,11 @@ test('1.7.10 pack staging repairs missing or corrupt official logging XML withou
   const loaders=new Loaders({root,fetcher,chooseJava:async()=>runtime(21)});
   const stage=await loaders.createStage(id,'GTNH',undefined,modern);
   try {
-    assert.equal(await require('../src/downloads.cjs').hashFile(xml),sha1);
+    assert.equal(await require('../src/shared/downloads.cjs').hashFile(xml),sha1);
     await fs.writeFile(xml,Buffer.alloc(file.size,'x'));
     const prepared=await loaders.gameEngine(stage.root,id).prepare();
     assert.ok(prepared.args.includes('-Dlog4j.configurationFile='+xml));
-    assert.equal(await require('../src/downloads.cjs').hashFile(xml),sha1);
+    assert.equal(await require('../src/shared/downloads.cjs').hashFile(xml),sha1);
     assert.deepEqual(calls,[]);
   } finally {await loaders.cleanStage(stage.root);}
 });

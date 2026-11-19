@@ -1,7 +1,7 @@
 // Upgrade an explicitly named, existing StarQuill pack without touching parents or game data.
 const fs=require('node:fs/promises'),path=require('node:path'),{randomUUID}=require('node:crypto');
-const {layout,readJSON}=require('../src/storage.cjs'),{noLinks}=require('../src/content-utils.cjs');
-const {embedPack,hmclIsolation}=require('../src/pack-layout.cjs');
+const {layout,readJSON}=require('../src/shared/storage.cjs'),{noLinks}=require('../src/shared/content-utils.cjs');
+const {embedPack,hmclIsolation}=require('../src/shared/pack-layout.cjs');
 async function upgrade(root,id) {
  root=path.resolve(root);const p=layout(root,id),marker=path.join(p.version,'starquill-pack.json');
  await noLinks(root,marker);await noLinks(root,p.json);

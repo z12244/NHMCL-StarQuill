@@ -1,5 +1,5 @@
 const {test}=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),crypto=require('node:crypto'),Zip=require('adm-zip');
-const {Modpacks}=require('../src/modpacks.cjs'),{ContentInstaller}=require('../src/content-install.cjs'),{Loaders,targetInfo}=require('../src/loaders.cjs'),{layout,scan,resolveVersion}=require('../src/storage.cjs'),{javaRequirement}=require('../src/java.cjs');
+const {Modpacks}=require('../src/shared/modpacks.cjs'),{ContentInstaller}=require('../src/shared/content-install.cjs'),{Loaders,targetInfo}=require('../src/shared/loaders.cjs'),{layout,scan,resolveVersion}=require('../src/shared/storage.cjs'),{javaRequirement}=require('../src/shared/java.cjs');
 const descriptor=body=>({url:'https://example.com/'+body+'.jar',sha1:crypto.createHash('sha1').update(body).digest('hex'),size:Buffer.byteLength(body)});
 test('partial Cleanroom instance composes on vanilla without running the Forge installer and publishes one isolated version',async t=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-cleanroom-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));

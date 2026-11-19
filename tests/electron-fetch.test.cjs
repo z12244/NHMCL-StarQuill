@@ -2,8 +2,8 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const {EventEmitter} = require('node:events');
 const {Readable,Writable} = require('node:stream');
-const {electronFetch} = require('../src/electron-fetch.cjs');
-const {ContentInstaller} = require('../src/content-install.cjs');
+const {electronFetch} = require('../src/shared/electron-fetch.cjs');
+const {ContentInstaller} = require('../src/shared/content-install.cjs');
 
 test('manual mirror HEAD exposes its installer checksum without forwarding cookies', async () => {
   const digest = '0123456789abcdef'.repeat(2) + '01234567';

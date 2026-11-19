@@ -1,5 +1,5 @@
 // Browsers can attach an ordinary hyperlink and a separate authlib URI to one card.
-const {guideEndpoint: skinGuideEndpoint} = typeof module !== 'undefined' && module.exports ? require('./skin-sites.cjs') : window.skinSites;
+const {guideEndpoint: skinGuideEndpoint} = typeof module !== 'undefined' && module.exports ? require('../shared/skin-sites.cjs') : window.skinSites;
 const skinDragFormats = ['text/plain', 'text/uri-list', 'text/x-moz-url'];
 function skinCardAddress(data) {
   const prefix = 'authlib-injector:yggdrasil-server:';

@@ -12,7 +12,7 @@ body.reference-ui{--paper:#f4efe8;--ink:#161c1c;--muted:#576363;--line:#c8c6bf;-
 .reference-ui .ref-window-controls{height:100%;display:flex;-webkit-app-region:no-drag}
 .reference-ui .ref-window-controls button{color:#f8f5ef;font:18px/1 'Segoe UI',sans-serif;background:transparent;border:0;width:35px;height:28px;padding:0;border-radius:0}
 .reference-ui #ref-window-minimize:hover{background:#ffffff18}.reference-ui #ref-window-close:hover{background:#b4313b}
-.reference-ui .sidebar{inset:var(--title) auto 0 0;width:var(--side);padding:25px 0 12px;border:0;background:#252828 url('assets/reference/neutral-background.jpg') left bottom / 834px 514px no-repeat;z-index:5}
+.reference-ui .sidebar{inset:var(--title) auto 0 0;width:var(--side);padding:25px 0 12px;border:0;background:#252828 url('../assets/reference/neutral-background.jpg') left bottom / 834px 514px no-repeat;z-index:5}
 .reference-ui .brand{height:46px;display:block;padding:0 8px;text-align:center;letter-spacing:0;color:#fff}
 .reference-ui .brand img{display:none}.reference-ui .brand .english-brand{font-size:12px;font-weight:800;letter-spacing:-.4px}.reference-ui .brand small{font-size:11px;color:#e2e4df;letter-spacing:1.8px;margin-top:3px}
 .reference-ui .nav-label,.reference-ui .sidebar .nav i{display:none}
@@ -26,7 +26,7 @@ body.reference-ui{--paper:#f4efe8;--ink:#161c1c;--muted:#576363;--line:#c8c6bf;-
 .reference-ui .sidebar-bottom{padding:0 11px;margin-top:auto}
 .reference-ui .sidebar-bottom>.small-cube,.reference-ui .sidebar-bottom>b,.reference-ui .sidebar-bottom>p{display:none}
 .reference-ui .build{font-size:9px;letter-spacing:.2px;color:#d1d8d5;margin:0;white-space:nowrap}
-.reference-ui main{position:absolute;left:var(--side);right:0;top:var(--title);bottom:0;margin:0;width:auto;overflow:hidden;background:var(--paper) url('assets/reference/neutral-background.jpg') right bottom / 834px 514px no-repeat}
+.reference-ui main{position:absolute;left:var(--side);right:0;top:var(--title);bottom:0;margin:0;width:auto;overflow:hidden;background:var(--paper) url('../assets/reference/neutral-background.jpg') right bottom / 834px 514px no-repeat}
 .reference-ui main>header{height:var(--header);padding:0 18px;border:0;display:flex;align-items:center;position:relative;z-index:8;background:transparent}
 .reference-ui main>header>div:not(.profile):not(.ref-header-strap){display:none}
 .reference-ui .ref-header-strap{font-size:9px;letter-spacing:2.2px;padding:0 0 8px;border-bottom:1px solid #c4c7c266;margin-right:158px;width:100%;white-space:nowrap;color:#253b42}

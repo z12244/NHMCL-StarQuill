@@ -11,52 +11,52 @@ const safeStorage = {
   decryptString: value => desktopStorage.decryptString(value)
 };
 const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
-const {detectIsolation,inferredMode,samePath,effectiveIsolation}=require('./isolation-detection.cjs');
+const {detectIsolation,inferredMode,samePath,effectiveIsolation}=require('../shared/isolation-detection.cjs');
 let pendingIsolation;
-const {windowSettings, launcherBounds, gameWindow} = require('./window-settings.cjs');
-const {Game,inspectJava}=require('./game.cjs');
-const advanced=require('./advanced.cjs');
+const {windowSettings, launcherBounds, gameWindow} = require('../shared/window-settings.cjs');
+const {Game,inspectJava}=require('../shared/game.cjs');
+const advanced=require('../shared/advanced.cjs');
 const publicSettings=()=>{const {localVersionArgs,importedIsolation,...visible}=settings;return {...visible,isolationCounts:samePath(importedIsolation?.root,settings.root)?importedIsolation.counts:null};};
-const {layout,scan,markStandalone,writeJSON,migrateLegacy}=require('./storage.cjs');
-const {validate,runtimePath,redact}=require('./core.cjs');
-const {scanJava,chooseJava,requiredJava,javaRequirement,javaCompatible,describeJava,memoryLimit}=require('./java.cjs');
-const {AccountStore,MicrosoftAuth,validClient,PROJECT_CLIENT_ID,resolveClientId}=require('./accounts.cjs');
-const {importSkin,previewSkin,startSkinServer}=require('./skins.cjs');
-const {YggdrasilAuth,PRESETS}=require('./yggdrasil.cjs');
-const {ManifestCatalog}=require('./catalog.cjs');
-const {registerMarket}=require('./market-ipc.cjs');
-const {registerInstances}=require('./instance-manager.cjs');
-const {registerOfflinePacks}=require('./offline-pack.cjs');
-const {instanceOptions}=require('./instance-config.cjs');
-const {validateJavaSelection,resolveJavaSelection,validMajor}=require('./java-selection.cjs');
-const {targetInfo}=require('./loaders.cjs');
-const {memorySnapshot,optimizeMemory}=require('./memory.cjs');
-const {logBuffer,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latestCrash}=require('./crash-reports.cjs');
+const {layout,scan,markStandalone,writeJSON,migrateLegacy}=require('../shared/storage.cjs');
+const {validate,runtimePath,redact}=require('../shared/core.cjs');
+const {scanJava,chooseJava,requiredJava,javaRequirement,javaCompatible,describeJava,memoryLimit}=require('../shared/java.cjs');
+const {AccountStore,MicrosoftAuth,validClient,PROJECT_CLIENT_ID,resolveClientId}=require('../shared/accounts.cjs');
+const {importSkin,previewSkin,startSkinServer}=require('../shared/skins.cjs');
+const {YggdrasilAuth,PRESETS}=require('../shared/yggdrasil.cjs');
+const {ManifestCatalog}=require('../shared/catalog.cjs');
+const {registerMarket}=require('../shared/market-ipc.cjs');
+const {registerInstances}=require('../shared/instance-manager.cjs');
+const {registerOfflinePacks}=require('../shared/offline-pack.cjs');
+const {instanceOptions}=require('../shared/instance-config.cjs');
+const {validateJavaSelection,resolveJavaSelection,validMajor}=require('../shared/java-selection.cjs');
+const {targetInfo}=require('../shared/loaders.cjs');
+const {memorySnapshot,optimizeMemory}=require('../shared/memory.cjs');
+const {logBuffer,crashBaseline,freshFatalFiles,unexpectedExit,exportCrash,latestCrash}=require('../shared/crash-reports.cjs');
 const crypto=require('node:crypto');
 let catalog,market,externalBusy=false,externalController,externalServer,externalSession,externalTimer;
 let accounts,accountError='',javaItems=[],javaScan,loginController,skinServer;
-const {electronFetch}=require('./electron-fetch.cjs');
+const {electronFetch}=require('../shared/electron-fetch.cjs');
 const fetcher=(url,options)=>electronFetch(net,url,options);
 const auth=new MicrosoftAuth({fetcher});
-const deviceLogin=new (require('./device-login.cjs').DeviceLogin)({clipboard,openExternal:url=>shell.openExternal(url)});
+const deviceLogin=new (require('../shared/device-login.cjs').DeviceLogin)({clipboard,openExternal:url=>shell.openExternal(url)});
 const externalAuth=new YggdrasilAuth({fetcher});
 let gameVisibility;
 let win,child,busy=false,controller,settings,logs=[],closing=false,gameStopRequested=false,sessionLogs=null,lastCrash=null;
 let welcomeNeeded=true,lastAuthFailure=null;
-function authFailureDetails(error){if(!error.details)return null;lastAuthFailure={time:new Date().toISOString(),clientId:settings.microsoftClientId,version:require('../package.json').displayVersion,...error.details};log('微软登录诊断：'+JSON.stringify(lastAuthFailure));return lastAuthFailure;}
+function authFailureDetails(error){if(!error.details)return null;lastAuthFailure={time:new Date().toISOString(),clientId:settings.microsoftClientId,version:require('../../package.json').displayVersion,...error.details};log('微软登录诊断：'+JSON.stringify(lastAuthFailure));return lastAuthFailure;}
 const appearanceSync=new Map(),appearanceResults=new Map();
 let state={phase:'idle',text:'准备就绪',percent:0};
 const settingsAccount=()=>accounts.accounts.find(a=>a.id===accounts.active)||{name:'Guest',type:'offline'};
 const home=()=>path.join(portable(),'.starquill-profile');
 const linuxData = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(),'.local','share'), 'NHMCL-StarQuill');
-const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : null) ||(app.isPackaged?path.dirname(process.execPath):path.join(__dirname,'..'));
-const {SharedLogins,windowsUserStorage}=require('./shared-logins.cjs');
+const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : null) ||(app.isPackaged?path.dirname(process.execPath):path.join(__dirname,'..','..'));
+const {SharedLogins,windowsUserStorage}=require('../shared/shared-logins.cjs');
 const systemLoginDir=process.platform==='linux' ? linuxData : path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'NHMCL-StarQuill');
-const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools','user-storage-key.exe');
+const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools','user-storage-key.exe');
 let loginDatabase;
 function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform==='linux' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
 const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
-const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..'),app.isPackaged);
+const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..','..'),app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
 function status(phase,text,percent=0){state={phase,text,percent:Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):0};send('state',state);}
 function cleanLog(text){let clean=market?.redact(redact(text))||redact(text);for(const a of [...(accounts?.accounts||[]),externalSession].filter(Boolean))for(const key of ['accessToken','refreshToken','clientToken'])if(a.tokens?.[key])clean=clean.replaceAll(a.tokens[key],'[redacted]');return clean;}
@@ -72,23 +72,23 @@ async function local(){
 }
 function requireIdle(){if(busy||loginController||externalBusy)throw Error('请等待当前任务或账号登录结束后再修改设置或账号');}
 function scanRuntimes(){if(!javaScan)javaScan=scanJava({bundled:bundled(),selected:settings.java,root:settings.root,extraRoots:settings.javaRoots||[]}).then(items=>{javaItems=items;send('java-list',items);return items;}).finally(()=>{javaScan=null;});return javaScan;}
-async function accountView(){if(!accountError)accounts.syncShared();const data=accounts.public();for(const a of data.accounts){if(a.type==='authlib'){const key=settings.root+'\0'+a.id,cached=appearanceResults.get(key)||await require('./appearance.cjs').cachedAppearance(settings.root,a);if(cached){a.preview=cached.skin;a.appearance={model:cached.model,default:cached.default,cape:!!cached.cape,warning:cached.warning||''};}a.appearancePending=appearanceSync.has(key);}else if(a.skin)a.preview=await previewSkin(settings.root,a.skin);}return data;}
+async function accountView(){if(!accountError)accounts.syncShared();const data=accounts.public();for(const a of data.accounts){if(a.type==='authlib'){const key=settings.root+'\0'+a.id,cached=appearanceResults.get(key)||await require('../shared/appearance.cjs').cachedAppearance(settings.root,a);if(cached){a.preview=cached.skin;a.appearance={model:cached.model,default:cached.default,cape:!!cached.cape,warning:cached.warning||''};}a.appearancePending=appearanceSync.has(key);}else if(a.skin)a.preview=await previewSkin(settings.root,a.skin);}return data;}
 async function changedAccounts(){const data=await accountView();send('accounts-changed',data);return data;}
 function queueAccountAppearance(account,force=false){
   if(account?.type!=='authlib')return Promise.resolve();
   const root=settings.root,key=root+'\0'+account.id;if(appearanceSync.has(key)){const current=appearanceSync.get(key);if(force&&!current.force){current.force=true;current.promise=current.promise.then(()=>queueAccountAppearance(account,true));}return current.promise;}
   const controller=new AbortController();
-  const promise=(async()=>{try{const value=await require('./appearance.cjs').appearance(root,account,fetcher,{force,signal:controller.signal});if(!controller.signal.aborted&&accounts.accounts.some(a=>a.id===account.id)){appearanceResults.set(key,value);while(appearanceResults.size>128)appearanceResults.delete(appearanceResults.keys().next().value);}return value;}catch(error){if(!controller.signal.aborted)log('角色外观读取失败：'+error.message);}finally{appearanceSync.delete(key);if(settings.root===root&&accounts.accounts.some(a=>a.id===account.id))await changedAccounts();}})();
+  const promise=(async()=>{try{const value=await require('../shared/appearance.cjs').appearance(root,account,fetcher,{force,signal:controller.signal});if(!controller.signal.aborted&&accounts.accounts.some(a=>a.id===account.id)){appearanceResults.set(key,value);while(appearanceResults.size>128)appearanceResults.delete(appearanceResults.keys().next().value);}return value;}catch(error){if(!controller.signal.aborted)log('角色外观读取失败：'+error.message);}finally{appearanceSync.delete(key);if(settings.root===root&&accounts.accounts.some(a=>a.id===account.id))await changedAccounts();}})();
   appearanceSync.set(key,{promise,controller,force});return promise;
 }
 function stopSkin(){skinServer?.close();skinServer=null;}
-function engine(extra={}){return new Game({...settings,toolsDir:path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools'),java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
-const agentFile=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools','authlib-injector-1.2.8.jar');
+function engine(extra={}){return new Game({...settings,toolsDir:path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools'),java:settings.java||bundled(),version:settings.selected,onLog:log,fetcher,getManifest:()=>catalog.refresh(false),...extra});}
+const agentFile=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools','authlib-injector-1.2.8.jar');
 async function discardExternal(){clearTimeout(externalTimer);const old=externalSession;externalSession=null;if(old)await externalAuth.invalidate(old).catch(()=>{});}
 const runJob=async(fn,title)=>{requireIdle();busy=true;controller=new AbortController();status('preparing',title);try{const result=await fn(controller.signal);status('idle','准备就绪');return result;}catch(e){log(e.message);status('error',e.message);throw e;}finally{busy=false;controller=null;}};
 registerInstances({ipcMain,dialog,shell,persist,window:()=>win,settings:()=>settings,idle:requireIdle,job:runJob,changed:async()=>send('instances-changed',await local())});
 registerOfflinePacks({ipcMain,dialog,window:()=>win,settings:()=>settings,job:runJob,progress:(text,percent)=>status('downloading',text,percent),chooseJava:async(id,required,options)=>resolveJavaSelection({root:settings.root,id,settings:options,required,items:scanRuntimes}),changed:async id=>{settings.selected=id;await persist();send('instances-changed',await local());send('market-changed',{selected:id});}});
-const {createAssistant,scrub}=require('./ai-assistant.cjs');
+const {createAssistant,scrub}=require('../shared/ai-assistant.cjs');
 const assistant=createAssistant({
   shared:sharedLogins,fetcher,online:()=>net.isOnline(),
   context:async analyze=>{
@@ -172,9 +172,9 @@ app.whenReady().then(async()=>{
   try{const receipt=JSON.parse(await fs.readFile(path.join(home(),'welcome.json'),'utf8'));welcomeNeeded=receipt.completedOn===os.hostname()?false:safeStorage.decryptString(Buffer.from(receipt.receipt,'base64'))!==('starquill-welcome-v1:'+os.hostname());}catch{welcomeNeeded=true;}
   if(accounts.accounts.some(a=>a.type==='authlib'))welcomeNeeded=false;
   // Match the supplied HMCL window's saved logical size, independent of DPI.
-  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   win.setBounds(launcherBounds(settings.windows,screen.getDisplayMatching(win.getBounds()).workArea,win.getBounds()));
-  gameVisibility=require('./game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
+  gameVisibility=require('../shared/game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
   win.once('closed',()=>gameVisibility.stop());
   win.removeMenu();
   win.on('app-command',(event,command)=>{if(command==='browser-backward'){event.preventDefault();send('navigate-back');}});
@@ -192,7 +192,7 @@ app.whenReady().then(async()=>{
     catch(e){log(e.message);}
   });
   win.webContents.setBackgroundThrottling(false);
-  await win.loadFile(path.join(__dirname,'index.html'));
+  await win.loadFile(path.join(__dirname,'..','index.html'));
   // Reveal only after the new shell and local bootstrap have finished.
   // Allow the hidden compositor to replace its initial frame before showing.
   await win.webContents.executeJavaScript('Promise.resolve(window.starquillReady).then(() => Promise.race([document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))),new Promise(resolve => setTimeout(resolve,450))]))');
@@ -204,7 +204,7 @@ app.whenReady().then(async()=>{
 });
 app.on('before-quit',()=>{closing=true;gameVisibility?.stop();loginController?.abort();externalController?.abort();clearTimeout(externalTimer);controller?.abort();for(const job of appearanceSync.values())job.controller.abort();stopSkin();});
 app.on('window-all-closed',()=>app.quit());
-ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('../package.json').displayVersion||app.getVersion()}));
+ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('../../package.json').displayVersion||app.getVersion()}));
 ipcMain.handle('versions',async(_,force=false)=>catalog.refresh(force===true));
 ipcMain.handle('instances',()=>local());
 ipcMain.handle('window-control',(event,command)=>{if(event.sender!==win?.webContents||!['minimize','close'].includes(command))return false;if(command==='minimize')win.minimize();else win.close();return true;});
@@ -236,7 +236,7 @@ ipcMain.handle('login-cache-import',async()=>{
   const picked=await dialog.showOpenDialog(win,{properties:['openDirectory'],defaultPath:home(),title:'选择旧版 .starquill-profile 文件夹'});
   if(picked.canceled)return null;
   requireIdle();
-  const result=await require('./legacy-connections.cjs').importConnections(picked.filePaths[0],sharedLogins(),safeStorage,keyHelper());
+  const result=await require('../shared/legacy-connections.cjs').importConnections(picked.filePaths[0],sharedLogins(),safeStorage,keyHelper());
   await changedAccounts();return result;
 });
 ipcMain.handle('login-cache-clear',async()=>{
@@ -273,11 +273,11 @@ ipcMain.handle('account-skin-model',async(_,input)=>{
   try{
     let skin=account.skin;
     if(skin){
-      const bytes=await require('./skins.cjs').readSkin(settings.root,skin);
+      const bytes=await require('../shared/skins.cjs').readSkin(settings.root,skin);
       if(model==='slim'&&bytes.readUInt32BE(20)!==64)throw Error('纤细手臂需要 64×64 皮肤');
       skin={...skin,model};
     }else{
-      skin=await importSkin(settings.root,path.join(__dirname,'assets',model==='slim'?'alex.png':'steve.png'),model);
+      skin=await importSkin(settings.root,path.join(__dirname,'..','assets',model==='slim'?'alex.png':'steve.png'),model);
     }
     await accounts.put({...account,skin});return changedAccounts();
   }finally{busy=false;}
@@ -363,11 +363,11 @@ ipcMain.handle('launch',async()=>{requireIdle();if(accountError)throw Error(acco
   }catch(e){const canceled=controller?.signal.aborted;stopSkin();busy=false;child=null;controller=null;sessionLogs=null;status('error',e.message);log(e.message);if(!canceled&&!closing)analyzeFailure(crash,null,e.message).catch(err=>log('AI 分析失败：'+err.message));local().then(items=>send('instances-changed',items)).catch(()=>{});throw e;}
 });
 
-const loadResourceIcon=require('./resource-icons.cjs').createIconLoader((...args)=>fetcher(...args),buffer=>{const img=require('electron').nativeImage.createFromBuffer(buffer);if(img.isEmpty())return null;const size=img.getSize();if(size.width>4096||size.height>4096)return null;return img.resize({width:128,height:128,quality:'best'}).toDataURL();});
+const loadResourceIcon=require('../shared/resource-icons.cjs').createIconLoader((...args)=>fetcher(...args),buffer=>{const img=require('electron').nativeImage.createFromBuffer(buffer);if(img.isEmpty())return null;const size=img.getSize();if(size.width>4096||size.height>4096)return null;return img.resize({width:128,height:128,quality:'best'}).toDataURL();});
 ipcMain.handle('resource-icon',(_,url)=>loadResourceIcon(url));
-ipcMain.handle('instance-icon',(_,id)=>require('./instance-icons.cjs').readInstanceIcon(settings.root,id,loadResourceIcon));
+ipcMain.handle('instance-icon',(_,id)=>require('../shared/instance-icons.cjs').readInstanceIcon(settings.root,id,loadResourceIcon));
 
-const appearanceJobs=new Map();async function accountAppearance(id){const a=accounts.accounts.find(a=>a.id===id);if(!a)throw Error('账号已被移除');const root=settings.root,sync=appearanceSync.get(root+'\0'+id);if(sync)await sync.promise;const ready=appearanceResults.get(root+'\0'+id);if(a.type==='authlib'&&ready)return ready;const key=root+'\0'+id+JSON.stringify(a.skin||null);if(!appearanceJobs.has(key))appearanceJobs.set(key,require('./appearance.cjs').appearance(root,a,fetcher).finally(()=>appearanceJobs.delete(key)));return appearanceJobs.get(key);}
+const appearanceJobs=new Map();async function accountAppearance(id){const a=accounts.accounts.find(a=>a.id===id);if(!a)throw Error('账号已被移除');const root=settings.root,sync=appearanceSync.get(root+'\0'+id);if(sync)await sync.promise;const ready=appearanceResults.get(root+'\0'+id);if(a.type==='authlib'&&ready)return ready;const key=root+'\0'+id+JSON.stringify(a.skin||null);if(!appearanceJobs.has(key))appearanceJobs.set(key,require('../shared/appearance.cjs').appearance(root,a,fetcher).finally(()=>appearanceJobs.delete(key)));return appearanceJobs.get(key);}
 ipcMain.handle('account-appearance',async(_,id,force)=>{
   if(force!==true)return accountAppearance(id);
   const account=accounts.accounts.find(a=>a.id===id);
@@ -377,6 +377,6 @@ ipcMain.handle('account-appearance',async(_,id,force)=>{
     if(!value)throw Error('暂时无法刷新皮肤');
     return value;
   }
-  return require('./appearance.cjs').appearance(settings.root,account,fetcher,{force:true});
+  return require('../shared/appearance.cjs').appearance(settings.root,account,fetcher,{force:true});
 });
 ipcMain.handle('account-appearance-export',async(_,id)=>{const a=accounts.accounts.find(a=>a.id===id);if(!a)throw Error('账号已被移除');const data=await accountAppearance(id);const result=await dialog.showSaveDialog(win,{title:'导出皮肤',defaultPath:a.name.replace(/[^a-zA-Z0-9_-]/g,'_')+'-skin.png',filters:[{name:'PNG 图片',extensions:['png']}]});if(result.canceled||!result.filePath)return false;await fs.writeFile(result.filePath,Buffer.from(data.skin.split(',')[1],'base64'));return true;});

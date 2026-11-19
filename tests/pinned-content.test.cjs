@@ -1,6 +1,6 @@
 const test=require('node:test'),assert=require('node:assert/strict'),fs=require('node:fs/promises');
 const path=require('node:path'),os=require('node:os'),crypto=require('node:crypto'),Zip=require('adm-zip');
-const {Modpacks}=require('../src/modpacks.cjs'),{cacheFile}=require('../src/content-install.cjs');
+const {Modpacks}=require('../src/shared/modpacks.cjs'),{cacheFile}=require('../src/shared/content-install.cjs');
 const data=Buffer.from('the exact pinned bytes'),id='82',fileId='715',project={source:'curseforge',id,title:'Example',kind:'mod'};
 async function make(t){
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'sq-pinned-'));t.after(()=>fs.rm(root,{recursive:true,force:true}));

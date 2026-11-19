@@ -1,5 +1,5 @@
 const test=require('node:test'),assert=require('node:assert/strict');
-const {installerSha1}=require('../src/loaders.cjs');
+const {installerSha1}=require('../src/shared/loaders.cjs');
 const url='https://maven.neoforged.net/releases/net/neoforged/neoforge/21.1.266/neoforge-21.1.266-installer.jar';
 const hash='0123456789abcdef0123456789abcdef01234567';
 test('missing Maven sidecar uses the checksum on the exact mirror artifact before following its redirect',async()=>{

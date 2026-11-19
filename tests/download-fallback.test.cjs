@@ -1,7 +1,7 @@
 const test=require('node:test');
 const assert=require('node:assert/strict');
 const crypto=require('node:crypto'),fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os');
-const {Downloads,MIRROR}=require('../src/downloads.cjs');
+const {Downloads,MIRROR}=require('../src/shared/downloads.cjs');
 const origin='https://maven.neoforged.net/releases/net/neoforged/mergetool/2.0.0/mergetool-2.0.0-api.jar';
 const digest=value=>crypto.createHash('sha1').update(value).digest('hex');
 test('mirror cooldown keeps a reachable fallback when the preferred origin is down',async t=>{
