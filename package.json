@@ -52,7 +52,6 @@
       "requestExecutionLevel": "user"
     }
   },
-  "productName": "NHMCL-StarQuill",
   "overrides": {
     "@xmcl/unzip": "2.1.2"
   },
