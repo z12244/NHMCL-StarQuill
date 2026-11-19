@@ -1,5 +1,7 @@
 # 历史测试版
 
-按 `beta-0.x.x` 版本分目录保存历史源码包。历史 Windows EXE 体积较大，统一作为 GitHub 上的“历史原始构建”预发布附件提供，并在 `release-history/catalog.json` 中列出文件名与 SHA-256。版本对应关系和旧版差异见 [归档说明](../release-history/README.md)。
+历史源码包已迁移到 Release 附件，不再随源码树分发：
 
-历史构建按原始内容归档，仅统一外部文件名。部分旧版源包仍使用当时的项目名称和版本号。
+- [历史测试版源码归档（beta-0.2.0 ~ beta-0.8.6）](https://github.com/z12244/NHMCL-StarQuill/releases/tag/old-versions)
+
+历史 Windows EXE 的说明见 [归档说明](../release-history/README.md)，文件名与 SHA-256 见 [catalog.json](../release-history/catalog.json)。
