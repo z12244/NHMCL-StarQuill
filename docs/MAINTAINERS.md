@@ -11,6 +11,16 @@
   - 禁止新建、删除、强制移动，仅管理员可绕过。
 - **协作者（Write）**：可在普通分支推送、开 PR；合并 `main` 需 owner 批准；不能直接改受保护 tag。
 
+## 路径限制（CODEOWNERS）
+
+- **需要 owner 审核的路径**（源码与构建相关）：
+  - `src/`、`scripts/`、`tests/`、`tools/`、`assets/`
+  - `package.json`、`package-lock.json`
+  - `.github/CODEOWNERS`、`.github/workflows/`
+- **可直接提交 PR 的非源码内容**：
+  - `docs/`、`README.md`、`old-versions/`、`release-history/`、`.github/ISSUE_TEMPLATE/`
+- 分支保护已开启「Require review from Code Owners」：涉及上述源码路径的 PR 必须由 owner 批准才能合并。
+
 ## 发布约定
 
 - **Release 与 tag 由 owner 操作**：创建/删除 Release、上传/删除附件、新建/移动 tag 均需 owner 确认。

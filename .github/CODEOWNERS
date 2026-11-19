@@ -1,0 +1,12 @@
+# 源码与构建相关路径：任何改动都需要 owner 审核
+/src/ @z12244
+/scripts/ @z12244
+/tests/ @z12244
+/tools/ @z12244
+/assets/ @z12244
+/package.json @z12244
+/package-lock.json @z12244
+
+# 仓库安全相关：防止绕过保护
+/.github/CODEOWNERS @z12244
+/.github/workflows/ @z12244
