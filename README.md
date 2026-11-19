@@ -4,7 +4,7 @@
 
 由 StarQuill_z12244 发起的 Minecraft 启动器项目，经由南湖模作社参与维护与发行。面向 Windows 10 / Windows 11 x64。
 
-当前正式版为 **stable-1.0.3（v1.0.3）**。
+当前正式版为 **stable-1.0.3（v1.0.3）**，最新测试版为 **beta-1.0.4**。
 
 [下载最新版](https://github.com/z12244/NHMCL-StarQuill/releases/latest) · [全部版本](https://github.com/z12244/NHMCL-StarQuill/releases) · [正式版测试范围](docs/STABLE-1.0.0-TESTS.json)
 
@@ -21,6 +21,8 @@
 | macOS | `NHMCL-StarQuill-beta-1.0.3-mac-untested.zip` | 通用二进制（x64 + arm64），基于 beta-1.0.3 交叉打包，**未在 macOS 环境实测**；首次打开请按包内 `macOS-README.txt` 完成 ad-hoc 签名 |
 
 > 各文件 SHA-256 见 Release 附件中的 `SHA256SUMS*.txt`。
+
+> 最新测试版 **beta-1.0.4**：[预发布下载](https://github.com/z12244/NHMCL-StarQuill/releases/tag/beta-1.0.4)，包含旧版资源准备修复、准备性能优化、整合包解压优化与官方浅色 / 深色主题。
 
 ## 使用
 
