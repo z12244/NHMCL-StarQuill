@@ -26,7 +26,8 @@ with source.open("rb") as stream:
                     target.chmod(0o755)
 
     for name in ("node_modules", "internal"):
-        extract(entries[name]["files"], destination / name)
+        if name == 'node_modules' or name in entries:
+            extract(entries[name]["files"], destination / name)
     metadata = json.loads(read_entry(entries["package.json"]))
     local = json.loads(Path("package.json").read_text(encoding="utf-8"))
     for field in ("displayVersion", "releaseName"):

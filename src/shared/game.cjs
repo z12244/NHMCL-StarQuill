@@ -5,7 +5,7 @@ const {pipeJavaLog}=require('./java-output.cjs');
 const {gameWindow,syncGameDisplay}=require('./window-settings.cjs');
 const advanced=require('./advanced.cjs');
 const {runPreLaunch,highPerformanceGpu,linuxGameEnv}=require('./launch-system.cjs');
-const {Downloads,MANIFEST}=require('./downloads.cjs');
+const {Downloads,MANIFEST,pool}=require('./downloads.cjs');
 const {layout,under,readJSON,writeJSON,resolveVersion,libraryKey}=require('./storage.cjs');
 const {inspectJava,requiredJava,javaRequirement,javaCompatible,describeJava}=require('./java.cjs');
 const exec=promisify(execFile);
@@ -71,11 +71,23 @@ class Game {
     const jar=layout(o.root,jarOwner).jar;
     const libs=libraryFiles(meta,p);const files=[{...client,file:jar},...libs.files];
     let index,assetIndex=meta.assetIndex?.id||meta.assets;
-    if(meta.assetIndex){const indexFile=under(p.assets,'indexes/'+assetIndex+'.json');
-      // Migrate the old Aster/MCLC alias without creating a second download.
-      try{await fs.access(indexFile);}catch{try{const alias=under(p.assets,'indexes/'+o.version+'.json');const candidate={file:alias,sha1:meta.assetIndex.sha1,size:meta.assetIndex.size};if(await this.downloads.valid(candidate)){await fs.mkdir(path.dirname(indexFile),{recursive:true});await fs.copyFile(alias,indexFile);}}catch{}}
-      this.downloads.stats.total++;await this.downloads.ensure({...meta.assetIndex,file:indexFile});this.downloads.stats.done++;index=await readJSON(indexFile);
-      for(const asset of Object.values(index.objects||{})){if(!/^[a-f0-9]{40}$/i.test(asset.hash))throw Error('资源索引包含无效哈希');files.push({file:under(p.assets,`objects/${asset.hash.slice(0,2)}/${asset.hash}`),sha1:asset.hash,size:asset.size,url:`https://resources.download.minecraft.net/${asset.hash.slice(0,2)}/${asset.hash}`});}
+    if(assetIndex){
+      const indexFile=under(p.assets,'indexes/'+assetIndex+'.json');
+      const knownLegacy=new Map([['legacy','770572e819335b6c0a053f8378ad88eda189fc14'],['pre-1.6','3d8e55480977e32acd9844e545177e69a52f594b']]);
+      const sha1=knownLegacy.get(assetIndex);
+      const descriptor=meta.assetIndex||(sha1?{sha1,url:'https://piston-meta.mojang.com/v1/packages/'+sha1+'/'+assetIndex+'.json'}:{});
+      if(descriptor.sha1){
+        try{await fs.access(indexFile);}catch{
+          const alias=under(p.assets,'indexes/'+o.version+'.json');
+          if(await this.downloads.valid({...descriptor,file:alias})){await fs.mkdir(path.dirname(indexFile),{recursive:true});await fs.copyFile(alias,indexFile);}
+        }
+      }
+      this.downloads.stats.total++;
+      await this.downloads.ensure({...descriptor,file:indexFile});
+      this.downloads.stats.done++;
+      index=await readJSON(indexFile);
+      if(!index?.objects||typeof index.objects!=='object'||Array.isArray(index.objects))throw Error('资源索引格式无效：'+assetIndex);
+      for(const asset of Object.values(index.objects)){if(!asset||!Number.isSafeInteger(asset.size)||asset.size<0||!/^[a-f0-9]{40}$/i.test(asset.hash))throw Error('资源索引包含无效哈希');files.push({assetObject:true,file:under(p.assets,`objects/${asset.hash.slice(0,2)}/${asset.hash}`),sha1:asset.hash,size:asset.size,url:`https://resources.download.minecraft.net/${asset.hash.slice(0,2)}/${asset.hash}`});}
     }
     const logging=meta.logging?.client;let loggingFile;
     if(logging?.file){
@@ -83,10 +95,49 @@ class Game {
       await supplyLegacyLoggingConfig(logging.file,loggingFile,this.downloads);
       files.push({...logging.file,file:loggingFile});
     }
-    await this.downloads.all(files);
-    for(const native of libs.natives){const zip=new Zip(native.file);for(const entry of zip.getEntries()){if(entry.isDirectory||native.exclude.some(prefix=>entry.entryName.startsWith(prefix)))continue;const file=under(p.natives,entry.entryName);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,entry.getData());}}
+    const stamp=path.join(p.game,'.starquill','prepared-'+crypto.createHash('sha256').update(o.version).digest('hex')+'.json');
+    const fingerprint=crypto.createHash('sha256').update(JSON.stringify([chain,index,libs,o.java,o.javaMajor,o.javaVersion,this.downloads.trustExisting])).digest('hex');
+    let previous;try{previous=await readJSON(stamp);}catch{}
+    const prepared=previous?.fingerprint===fingerprint;
+    await this.downloads.all(files,{prepared});
+    const nativeState={};
+    const signature=async file=>{
+      const stat=await fs.stat(file);
+      return [stat.size,stat.mtimeMs,stat.ctimeMs].join('/');
+    };
+    let reuseNatives=prepared&&previous.natives;
+    if(reuseNatives){
+      for(const [file,saved] of Object.entries(previous.natives)){
+        try{if(await signature(file)===saved)continue;}catch(error){if(error.code!=='ENOENT')throw error;}
+        reuseNatives=false;break;
+      }
+    }
+    if(!reuseNatives)for(const native of libs.natives){
+      nativeState[native.file]=await signature(native.file);
+      const zip=new Zip(native.file);
+      for(const entry of zip.getEntries()){
+        if(entry.isDirectory||native.exclude.some(prefix=>entry.entryName.startsWith(prefix)))continue;
+        const file=under(p.natives,entry.entryName);
+        await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,entry.getData());
+        nativeState[file]=await signature(file);
+      }
+    }
     let gameAssets=p.assets;
-    if(index?.virtual||index?.map_to_resources){gameAssets=index.map_to_resources?path.join(p.game,'resources'):under(p.assets,'virtual/'+assetIndex);for(const [name,item]of Object.entries(index.objects)){const target=under(gameAssets,name);try{await fs.access(target);}catch{await fs.mkdir(path.dirname(target),{recursive:true});await fs.copyFile(under(p.assets,`objects/${item.hash.slice(0,2)}/${item.hash}`),target);}}}
+    const mappings=[];
+    if(index?.virtual)mappings.push(under(p.assets,'virtual/'+assetIndex));
+    if(index?.map_to_resources)mappings.push(path.join(p.game,'resources'));
+    for(const folder of mappings){
+      gameAssets=folder;
+      await pool(Object.entries(index.objects),this.downloads.concurrency,async([name,item])=>{
+        const target=under(folder,name);
+        if(await this.downloads.valid({...item,sha1:item.hash,file:target}))return;
+        const source=under(p.assets,'objects/'+item.hash.slice(0,2)+'/'+item.hash);
+        await fs.mkdir(path.dirname(target),{recursive:true});
+        const temp=target+'.'+crypto.randomUUID()+'.tmp';
+        try{await fs.copyFile(source,temp);await fs.rename(temp,target);await this.downloads.valid({...item,sha1:item.hash,file:target});}finally{await fs.rm(temp,{force:true});}
+      });
+    }
+    if(mappings.length)await this.downloads.flush();
     const classpath=[...libs.classes,jar].join(path.delimiter);
     const account=o.account||{type:'offline',name:o.name,uuid:offlineUUID(o.name)};
     const online=account.type==='microsoft',external=account.type==='authlib',authenticated=online||external;if(authenticated&&!account.tokens?.accessToken)throw Error('账号登录已失效，请重新登录');
@@ -122,11 +173,16 @@ class Game {
     const args=['-Xms512M','-Xmx'+o.memory+'G',...jvm,...tuning,...custom,...(o.extraJvmArgs||[]),...wrapper,meta.mainClass,
       ...advanced.mergeGameArgs(sized,advanced.splitArguments(options.gameArgs))];
     this.log(`文件准备完成：复用 ${this.downloads.stats.reused} 项，下载 ${this.downloads.stats.downloaded} 项`);
+    if(!reuseNatives){
+      const temp=stamp+'.'+crypto.randomUUID();
+      await fs.mkdir(path.dirname(stamp),{recursive:true});
+      try{await fs.writeFile(temp,JSON.stringify({fingerprint,natives:nativeState}));await fs.rename(temp,stamp);}finally{await fs.rm(temp,{force:true});}
+    }
     return {args,cwd:p.game,jar,assetIndex,paths:p,stats:{...this.downloads.stats},javaVersion:major};
   }
   async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=javaRequirement(resolved.meta);if(!javaCompatible(java.major,required))throw Error(`此版本需要 Java ${describeJava(required)}，当前为 Java ${java.major}。请在设置中选择对应 Java 或启用自动选择。`);
     if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch))throw Error('此启动器需要 x64 架构的 Java，请选择 64 位 Java。');
-    this.options.javaMajor=java.major;
+    this.options.javaMajor=java.major;this.options.javaVersion=java.version;
     const prepared=await this.prepare({forLaunch:true}), o=this.options, options=advanced.effective(o.advanced);
     this.downloads.checkAbort();
     await runPreLaunch(options.preLaunch,{cwd:prepared.cwd,root:o.root,version:o.version,java:o.java,signal:o.signal,log:this.log,encoding:java.stdoutEncoding});

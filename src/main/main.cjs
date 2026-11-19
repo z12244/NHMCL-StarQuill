@@ -49,12 +49,13 @@ let state={phase:'idle',text:'准备就绪',percent:0};
 const settingsAccount=()=>accounts.accounts.find(a=>a.id===accounts.active)||{name:'Guest',type:'offline'};
 const home=()=>path.join(portable(),'.starquill-profile');
 const linuxData = path.join(process.env.XDG_DATA_HOME || path.join(os.homedir(),'.local','share'), 'NHMCL-StarQuill');
-const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : null) ||(app.isPackaged?path.dirname(process.execPath):path.join(__dirname,'..','..'));
+const macData=path.join(os.homedir(),'Library','Application Support','NHMCL-StarQuill');
+const portable=()=>process.env.PORTABLE_EXECUTABLE_DIR || (process.platform==='linux' ? linuxData : process.platform==='darwin' ? macData : null) ||(app.isPackaged?path.dirname(process.execPath):path.join(__dirname,'..','..'));
 const {SharedLogins,windowsUserStorage}=require('../shared/shared-logins.cjs');
-const systemLoginDir=process.platform==='linux' ? linuxData : path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'NHMCL-StarQuill');
+const systemLoginDir=process.platform==='darwin' ? macData : process.platform==='linux' ? linuxData : path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'NHMCL-StarQuill');
 const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools','user-storage-key.exe');
 let loginDatabase;
-function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform==='linux' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
+function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform!=='win32' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
 const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
 const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..','..'),app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
@@ -172,15 +173,36 @@ app.whenReady().then(async()=>{
   try{const receipt=JSON.parse(await fs.readFile(path.join(home(),'welcome.json'),'utf8'));welcomeNeeded=receipt.completedOn===os.hostname()?false:safeStorage.decryptString(Buffer.from(receipt.receipt,'base64'))!==('starquill-welcome-v1:'+os.hostname());}catch{welcomeNeeded=true;}
   if(accounts.accounts.some(a=>a.type==='authlib'))welcomeNeeded=false;
   // Match the supplied HMCL window's saved logical size, independent of DPI.
-  win=new BrowserWindow({show:false,...launcherBounds(settings.windows,screen.getPrimaryDisplay().workArea),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
-  win.setBounds(launcherBounds(settings.windows,screen.getDisplayMatching(win.getBounds()).workArea,win.getBounds()));
+  const positionFile=path.join(home(),'window-position.json');
+  let saved;
+  try {saved=JSON.parse(await fs.readFile(positionFile,'utf8'));} catch {}
+  function restored(point){
+    const display=screen.getAllDisplays().find(d=>d.id===point?.displayId && Number.isInteger(point.x) && Number.isInteger(point.y) && point.x>=d.workArea.x && point.x<d.workArea.x+d.workArea.width && point.y>=d.workArea.y && point.y<d.workArea.y+d.workArea.height);
+    return launcherBounds(settings.windows,(display||screen.getPrimaryDisplay()).workArea,display?point:{});
+  }
+  win=new BrowserWindow({show:false,...restored(saved),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  function fitContent(){
+    const [width,height]=win.getContentSize();
+    win.webContents.setZoomFactor(Math.min(1,width/720,height/460));
+  }
+  function refit(){
+    if(win.isDestroyed())return;
+    const bounds=win.getBounds();
+    win.setBounds(restored({...bounds,displayId:screen.getDisplayMatching(bounds).id}));
+    fitContent();
+  }
+  screen.on('display-removed',refit);screen.on('display-metrics-changed',refit);
+  win.once('closed',()=>{screen.removeListener('display-removed',refit);screen.removeListener('display-metrics-changed',refit);});
+  win.on('close',()=>{if(win.isMinimized())return;const bounds=win.getBounds();try{require('node:fs').writeFileSync(positionFile,JSON.stringify({x:bounds.x,y:bounds.y,displayId:screen.getDisplayMatching(bounds).id}));}catch{}});
+  win.on('resize',fitContent);
+  win.webContents.on('dom-ready',fitContent);
   gameVisibility=require('../shared/game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
   win.once('closed',()=>gameVisibility.stop());
   win.removeMenu();
   win.on('app-command',(event,command)=>{if(command==='browser-backward'){event.preventDefault();send('navigate-back');}});
-  win.webContents.setZoomFactor(1);
+  fitContent();
   win.webContents.setVisualZoomLevelLimits(1,1).catch(()=>{});
-  win.webContents.on('zoom-changed',()=>win.webContents.setZoomLevel(0));
+  win.webContents.on('zoom-changed',fitContent);
   win.webContents.on('before-input-event',(event,input)=>{if(input.key==='F11'||((input.control||input.meta)&&['+','-','=','0','Add','Subtract'].includes(input.key)))event.preventDefault();});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
   win.on('close',e=>{if(busy&&!closing){e.preventDefault();dialog.showMessageBox(win,{type:'question',message:'当前任务尚未结束，是否关闭？',detail:'下载将保留已完成文件与续传数据；运行中的游戏将结束。',buttons:['继续运行','关闭并结束任务'],defaultId:0,cancelId:0}).then(({response})=>{if(response===1){closing=true;controller?.abort();child?.kill();app.exit(0);}});}});

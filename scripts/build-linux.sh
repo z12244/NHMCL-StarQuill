@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 [[ $(dpkg --print-architecture) == amd64 ]]
 mkdir -p build dist
-archive=${NHMCL_BASE_ASAR:-build/stable-1.0.3.asar}
+archive=${NHMCL_BASE_ASAR:-build/beta-1.0.4.asar}
 if [[ ! -f $archive && -f dist/win-unpacked/resources/app.asar ]]; then
     mkdir -p "$(dirname "$archive")"
     cp dist/win-unpacked/resources/app.asar "$archive"
@@ -15,7 +15,7 @@ if [[ ! -f $archive ]]; then
     echo "请先运行 Windows 构建（npm run dist:win）生成 dist/win-unpacked/resources/app.asar，或从 Release 附件复制为 $archive。详见 docs/BUILD.md" >&2
     exit 1
 fi
-echo "74aa2dff74cb7735dfa5f368037f2d5c5b9638571d9560d967915b8d42b2ca23  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 stable-1.0.3 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
+echo "55a98e35ecd65b96f83da08c35a054c2e885c6339f29339c950776148f7683b5  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 beta-1.0.4 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
 electron=build/electron.zip
 url=${ELECTRON_DOWNLOAD_URL:-https://github.com/electron/electron/releases/download/v45.2.2/electron-v45.2.2-linux-x64.zip}
 if [[ ! -f $electron ]]; then curl -fL --retry 3 "$url" -o "$electron.part"; mv "$electron.part" "$electron"; fi
@@ -29,8 +29,8 @@ mv "$app/electron" "$app/nhmcl-starquill"
 mv "$app/chrome-sandbox" "$app/resources/chrome-sandbox.bin"
 rm -f "$app/resources/default_app.asar"
 dest="$app/resources/app"
-mkdir -p "$dest" "$app/resources/tools"
-cp -r src/. "$dest/"
+mkdir -p "$dest/src" "$app/resources/tools"
+cp -r src/. "$dest/src/"
 cp THIRD-PARTY-NOTICES.txt "$dest/"
 cp tools/*.jar tools/*.zip tools/*.txt tools/game-window-ready.sh "$app/resources/tools/"
 chmod 755 "$app/resources/tools/game-window-ready.sh"
@@ -50,6 +50,6 @@ import json, pathlib, sys
 script = pathlib.Path("scripts/linux-portable.sh").read_text()
 pathlib.Path(sys.argv[1]).write_text("static const char startup[] = " + json.dumps(script,ensure_ascii=False) + ";\n")
 PY
-cc -Os -Wall -Wextra -Werror -s -I "$stage" -DPAYLOAD_SIZE="\"$size\"" -DPAYLOAD_SHA256="\"$digest\"" scripts/portable-linux.c -o "$stage/stable-1.0.3-linux"
-cat "$stage/payload.xz" >> "$stage/stable-1.0.3-linux"
-mv "$stage/stable-1.0.3-linux" dist/
+cc -Os -Wall -Wextra -Werror -s -I "$stage" -DPAYLOAD_SIZE="\"$size\"" -DPAYLOAD_SHA256="\"$digest\"" scripts/portable-linux.c -o "$stage/beta-1.0.4-linux"
+cat "$stage/payload.xz" >> "$stage/beta-1.0.4-linux"
+mv "$stage/beta-1.0.4-linux" dist/

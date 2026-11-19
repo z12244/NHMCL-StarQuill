@@ -69,11 +69,17 @@
     const children=[...source.children],runtime=children.findIndex(x=>x.tagName==='H3'&&x.textContent==='运行环境'),about=children.findIndex(x=>x.classList.contains('about-name'));
     const tabs=node('div','ref-settings-tabs');tabs.setAttribute('role','tablist');tabs.setAttribute('aria-label','启动设置分类');
     const workspace=node('div','ref-settings-layout'),panels=node('div','ref-settings-panels'),summary=node('aside','ref-system-summary');
-    const panelMap={};for(const [id,label] of [['general','常规'],['java','Java 与内存'],['advanced','高级'],['ai','AI 助手'],['about','关于']]){
+    const panelMap={};for(const [id,label] of [['general','常规'],['java','Java 与内存'],['advanced','高级'],['appearance','外观'],['ai','AI 助手'],['about','关于']]){
       const button=node('button','ref-tab',label);button.type='button';button.setAttribute('role','tab');button.dataset.refSettings=id;button.id='ref-tab-'+id;button.setAttribute('aria-controls','ref-settings-'+id);tabs.append(button);
       const panel=node('section','ref-settings-panel');panel.id='ref-settings-'+id;panel.setAttribute('role','tabpanel');panel.setAttribute('aria-labelledby',button.id);panelMap[id]=panel;panels.append(panel);
       button.onclick=()=>select(id);
     }
+    const themeLabel=node('label','','启动器主题');
+    const themeSelect=node('select');
+    for(const [value,label] of [['light','浅色'],['dark','深色'],['system','跟随系统']])themeSelect.add(new Option(label,value));
+    themeSelect.value=window.officialTheme.current();
+    themeSelect.onchange=()=>window.officialTheme.select(themeSelect.value);
+    themeLabel.append(themeSelect);panelMap.appearance.append(themeLabel);
     const save=$('save');
     for(let i=0;i<children.length;i++){
       const e=children[i];if(e===save||e.tagName==='HR')continue;
@@ -92,7 +98,7 @@
     section.closest('main').append(footer);
     function select(id){
       if(id==='window'||id==='download')id='general';
-      footer.hidden=id==='ai'||id==='about';summary.hidden=id!=='java';workspace.classList.toggle('full-width',summary.hidden);for(const [key,panel] of Object.entries(panelMap)){panel.hidden=key!==id;const b=tabs.querySelector('[data-ref-settings='+key+']');b.setAttribute('aria-selected',String(key===id));b.classList.toggle('selected',key===id);}document.querySelector('.content').scrollTop=0;}
+      footer.hidden=id==='appearance'||id==='ai'||id==='about';summary.hidden=id!=='java';workspace.classList.toggle('full-width',summary.hidden);for(const [key,panel] of Object.entries(panelMap)){panel.hidden=key!==id;const b=tabs.querySelector('[data-ref-settings='+key+']');b.setAttribute('aria-selected',String(key===id));b.classList.toggle('selected',key===id);}document.querySelector('.content').scrollTop=0;}
     window.referenceUI={settingsTab:select};select('general');
     for(const id of ['runtime-settings','memory-settings']){const button=$(id),previous=button?.onclick;if(!button)continue;button.onclick=async e=>{if(previous)await previous(e);select('java');};}
   }

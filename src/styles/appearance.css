@@ -1,0 +1,9 @@
+html[data-theme=dark] body.reference-ui {color-scheme:dark;--paper:#202726;--ink:#edf4ef;--muted:#b5c4bd;--line:#55625d;color:var(--ink);background:var(--paper)}
+html[data-theme=dark] .reference-ui main {background:#202726}
+html[data-theme=dark] .reference-ui :is(dialog,.settings-card,.resource-card,.ref-settings-footer,.ref-launchbar,.ref-home-console,.ref-tab,.secondary,input,textarea,select,option,.section-tools,.install-file,.instance-row,.appearance-panel) {background-color:#293230;color:#eef5ef;border-color:#54645d}
+html[data-theme=dark] .reference-ui :is(p,label,h1,h2,h3,h4,.help,.notice,.ref-tab,.text-button,small) {color:var(--ink)}
+html[data-theme=dark] .reference-ui :is(.ref-tab.selected,.launch-button,.hero-button) {background-color:#22cbd1;color:#102322}
+html[data-theme=dark] body.reference-ui .ref-home-background {background-image:linear-gradient(#111a1abf,#111a1a99),url('../assets/reference/home-background.jpg')}
+html[data-theme=dark] .reference-ui .nav.active {background:#224547;color:#f3fffa}
+html[data-theme=dark] body.reference-ui :is(.ref-home-bottom,.ref-preview-hint){background:#25312e;color:var(--ink)}
+html[data-theme=dark] body.reference-ui :is(.ref-home-copy,.ref-home-kicker,.ref-home-shortcut,.ref-home-version #version,.ref-home-version #refresh){color:var(--ink)}

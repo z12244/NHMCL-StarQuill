@@ -41,16 +41,16 @@ class Downloads {
     this.cache={};this.stats={reused:0,downloaded:0,bytes:0,total:0,done:0};this.started=Date.now();this.last=0;this.mirrorFailures=0;this.mirrorBlockedUntil=0;
   }
   async init() {this.cacheFile=path.join(this.root,'.starquill','verified-files.json');try{this.cache=JSON.parse(await fs.readFile(this.cacheFile,'utf8'));}catch{}return this;}
-  async flush() {if(!this.cacheFile)return;await fs.mkdir(path.dirname(this.cacheFile),{recursive:true});const temp=this.cacheFile+'.tmp';await fs.writeFile(temp,JSON.stringify(this.cache));await fs.rename(temp,this.cacheFile);}
+  async flush() {if(!this.cacheFile||!this.dirty)return;await fs.mkdir(path.dirname(this.cacheFile),{recursive:true});const temp=this.cacheFile+'.'+crypto.randomUUID()+'.tmp';await fs.writeFile(temp,JSON.stringify(this.cache));await fs.rename(temp,this.cacheFile);this.dirty=false;}
   checkAbort(){if(this.signal?.aborted)throw Error('已取消下载');}
   progress(force=false) {const now=Date.now();if(force||now-this.last>200){this.last=now;this.onProgress({...this.stats,speed:this.stats.bytes/Math.max(1,(now-this.started)/1000)});}}
   async valid(item) {
     try {const stat=await fs.stat(item.file);if(!stat.isFile()||!stat.size&&item.size!==0)return false;if(item.size!=null&&stat.size!==item.size)return false;
       const hash=expectedHash(item);if(!hash)return true;
       const key=path.relative(this.root,item.file),cached=this.cache[key];
-      if((cached?.hash===hash.value&&cached.algorithm===hash.algorithm||hash.algorithm==='sha1'&&cached?.sha1===hash.value)&&cached.size===stat.size&&cached.mtime===stat.mtimeMs)return true;
+      if((cached?.hash===hash.value&&cached.algorithm===hash.algorithm||hash.algorithm==='sha1'&&cached?.sha1===hash.value)&&cached.size===stat.size&&cached.mtime===stat.mtimeMs&&cached.ctime===stat.ctimeMs)return true;
       if(await hashFile(item.file,hash.algorithm)!==hash.value)return false;
-      this.cache[key]={hash:hash.value,algorithm:hash.algorithm,size:stat.size,mtime:stat.mtimeMs};return true;
+      this.dirty=true;this.cache[key]={hash:hash.value,algorithm:hash.algorithm,size:stat.size,mtime:stat.mtimeMs,ctime:stat.ctimeMs};return true;
     } catch{return false;}
   }
   async json(url,sha1) {
@@ -63,9 +63,9 @@ class Downloads {
     }
     throw Error('无法获取版本信息：'+last?.message);
   }
-  async ensure(item) {
+  async ensure(item,{verify=false}={}) {
     this.checkAbort();
-    if(this.trustExisting){try{const stat=await fs.stat(item.file);if(stat.isFile()&&(stat.size>0||item.size===0)){this.stats.reused++;return;}}catch(e){if(e.code!=='ENOENT')throw e;}}
+    if(this.trustExisting&&!verify){try{const stat=await fs.stat(item.file);if(stat.isFile()&&(stat.size>0||item.size===0)){this.stats.reused++;return;}}catch(e){if(e.code!=='ENOENT')throw e;}}
     if(await this.valid(item)){this.stats.reused++;return;}
     if(!item.url)throw Error('缺少本地文件，且版本配置没有下载地址：'+path.relative(this.root,item.file));
     await fs.mkdir(path.dirname(item.file),{recursive:true});
@@ -139,9 +139,17 @@ class Downloads {
       await fs.rename(part,item.file);await fs.rm(info,{force:true});await this.valid(item);
     }finally{clearTimeout(timer);if(stream){stream.destroy();await once(stream,'close').catch(()=>{});}}
   }
-  async all(items) {
+  async all(items,{prepared=true}={}) {
     const unique=[...new Map(items.map(i=>[path.resolve(i.file),i])).values()];this.stats.total+=unique.length;
-    await pool(unique,this.concurrency,async item=>{await this.ensure(item);this.stats.done++;this.progress();});this.progress(true);await this.flush();
+    await pool(unique,this.concurrency,async item=>{
+      this.checkAbort();
+      // A directory listing cannot detect same-length edits to an asset.
+      // Verified objects always take the integrity path, even on a warm launch.
+      if(prepared&&item.assetObject&&await this.valid(item))this.stats.reused++;
+      else await this.ensure(item,{verify:item.assetObject});
+      this.stats.done++;this.progress();
+    });
+    this.progress(true);await this.flush();
   }
 }
 function expectedHash(item){for(const algorithm of ['sha512','sha256','sha1','md5']){const value=item.hashes?.[algorithm]||(algorithm==='sha1'?item.sha1:undefined);if(value){if(!new RegExp('^[a-f0-9]{'+({sha512:128,sha256:64,sha1:40,md5:32}[algorithm])+'}$','i').test(value))throw Error('文件校验值无效');return {algorithm,value:value.toLowerCase()};}}return null;}

@@ -30,9 +30,9 @@ function validator(options){const cap=limits(options),seen=new Map();let count=0
     return {name,directory,size:entry.uncompressedSize,compressedSize:entry.compressedSize,crc32:entry.crc32>>>0};
   };
 }
-async function visitArchive(file,options,visitor){
+async function visitArchive(file,options,visitor,afterScan){
   abort(options.signal);const validate=validator(options);
-  const zip=await new Promise((resolve,reject)=>yauzl.open(file,{lazyEntries:true,autoClose:true,decodeStrings:true,strictFileNames:true,validateEntrySizes:true},(error,value)=>error?reject(error):resolve(value)));
+  const zip=await new Promise((resolve,reject)=>yauzl.open(file,{lazyEntries:true,autoClose:false,decodeStrings:true,strictFileNames:true,validateEntrySizes:true},(error,value)=>error?reject(error):resolve(value)));
   let active=null,currentStream=null,stopped=false,ended=false;
   return new Promise((resolve,reject)=>{
     const cleanup=()=>options.signal?.removeEventListener('abort',onAbort);
@@ -57,7 +57,11 @@ async function visitArchive(file,options,visitor){
       active=(async()=>{abort(options.signal);const info=validate(entry);await visitor(info,()=>stream(entry));abort(options.signal);})();
       active.then(()=>{if(!stopped)zip.readEntry();},fail);
     });
-    zip.once('end',()=>{ended=true;if(stopped)return;stopped=true;cleanup();resolve();});
+    zip.once('end',()=>{
+      ended=true;
+      active=Promise.resolve().then(()=>{abort(options.signal);return afterScan?.();});
+      active.then(()=>{if(stopped)return;stopped=true;cleanup();zip.close();resolve();},fail);
+    });
     options.signal?.addEventListener('abort',onAbort,{once:true});
     if(options.signal?.aborted)onAbort();else zip.readEntry();
   });
@@ -86,13 +90,9 @@ async function extractArchiveFiles(file,selections,target,options={}){
   }
   await noLinks(root,root);await fs.mkdir(root,{recursive:true});
   let filesDone=0,bytesDone=0,totalBytes=0,lastProgress=0;
-  // Validate every entry before creating files. This also supplies progress totals.
-  const entries=await listArchive(file,options),found=new Set();
-  for(const info of entries)if(selected.has(info.name)){if(info.directory)throw Error('不能将目录作为整合包文件提取');found.add(info.name);totalBytes+=info.size;}
-  for(const name of selected.keys())if(!found.has(name))throw Error('整合包缺少文件：'+name);
+  const found=new Set(),pending=[],committed=[];
   const progress=(relative,force=false)=>{const now=Date.now();if(force||now-lastProgress>=100){lastProgress=now;options.onProgress?.({path:relative,filesDone,totalFiles:selected.size,bytesDone,totalBytes});}};
-  await visitArchive(file,options,async(info,openStream)=>{
-    const relative=selected.get(info.name);if(!relative)return;
+  async function writeSelected(info,openStream,relative){
     const dest=path.resolve(root,...relative.split('/')),rel=path.relative(root,dest);
     if(!rel||rel==='..'||rel.startsWith('..'+path.sep)||path.isAbsolute(rel))throw Error('整合包目标越出版本目录');
     await noLinks(root,dest);await fs.mkdir(path.dirname(dest),{recursive:true});
@@ -102,10 +102,34 @@ async function extractArchiveFiles(file,selections,target,options={}){
       const input=await openStream(),output=handle.createWriteStream({autoClose:true});
       await pipeline(input,checkStream(info,chunk=>{bytesDone+=chunk.length;progress(relative);}),output,{signal:options.signal});
       await handle.close();handle=null;abort(options.signal);await noLinks(root,dest);
-      if(options.overwrite)await fs.rename(temp,dest);
+      let backup;
+      if(options.overwrite){
+        backup=temp+'.previous';
+        try{await fs.copyFile(dest,backup,native.constants.COPYFILE_EXCL);}
+        catch(error){if(error.code!=='ENOENT')throw error;backup=undefined;}
+        try{await fs.rename(temp,dest);}catch(error){if(backup)await fs.unlink(backup);throw error;}
+      }
       else{try{await fs.link(temp,dest);}catch(error){if(!['EPERM','ENOSYS','EOPNOTSUPP','EXDEV'].includes(error.code))throw error;await fs.copyFile(temp,dest,native.constants.COPYFILE_EXCL);}await fs.unlink(temp);}
-      filesDone++;progress(relative,true);
+      committed.push({dest,backup});filesDone++;progress(relative,true);
     }finally{if(handle)await handle.close().catch(()=>{});await fs.rm(temp,{force:true});}
-  });return {files:filesDone,bytes:bytesDone};
+  }
+  try{await visitArchive(file,options,(info,openStream)=>{
+    const relative=selected.get(info.name);
+    if(!relative||info.directory)return;
+    found.add(info.name);
+    totalBytes+=info.size;
+    pending.push({info,openStream,relative});
+  },async()=>{
+    for(const name of selected.keys())if(!found.has(name))throw Error('整合包缺少文件：'+name);
+    for(const {info,openStream,relative} of pending)await writeSelected(info,openStream,relative);
+  });
+  }catch(error){
+    for(const {dest,backup} of committed.reverse()){
+      if(backup)await fs.rename(backup,dest);else await fs.unlink(dest);
+    }
+    throw error;
+  }
+  for(const {backup} of committed)if(backup)await fs.unlink(backup);
+  return {files:filesDone,bytes:bytesDone};
 }
 module.exports={listArchive,readArchiveFiles,extractArchiveFiles,crc32};
