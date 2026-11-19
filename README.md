@@ -63,4 +63,4 @@ npm run dist -- --config.directories.output=dist
 
 多平台构建（Linux / macOS）的详细步骤见 [构建说明](docs/BUILD.md)。
 
-[整合包说明](docs/GTNH-AND-CLEANROOM.md) · [Java、内存与崩溃诊断](docs/MEMORY-AND-CRASH.md) · [离线包](docs/OFFLINE-PACK.md) · [历史 Beta 目录](old-versions/) · [第三方组件许可](THIRD-PARTY-NOTICES.txt)
+[整合包说明](docs/GTNH-AND-CLEANROOM.md) · [Java、内存与崩溃诊断](docs/MEMORY-AND-CRASH.md) · [离线包](docs/OFFLINE-PACK.md) · [历史 Beta 目录](old-versions/) · [第三方组件许可](THIRD-PARTY-NOTICES.txt) · [维护说明](docs/MAINTAINERS.md)
