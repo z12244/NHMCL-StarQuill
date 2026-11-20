@@ -27,9 +27,19 @@
   window.addEventListener('blur',()=>{mouseEditor=null;});
   const paths={play:'M7 4l14 8-14 8z',layers:'M3 8l9-5 9 5-9 5z M3 12l9 5 9-5 M3 16l9 5 9-5',cube:'M3 7l9-5 9 5v10l-9 5-9-5z M3 7l9 5 9-5 M12 12v10',settings:'M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z M9 3l1-2h4l1 2 2 1 3 0 2 4-2 2v3l2 2-2 4-3 0-2 1-1 2h-4l-1-2-2-1-3 0-2-4 2-2v-3L2 8l2-4 3 0z',logs:'M5 2h10l4 4v16H5z M14 2v5h5 M8 11h8 M8 15h8 M8 19h6'};
   const icon=(name)=>'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" aria-hidden="true"><path d="'+paths[name]+'"/></svg>';
-  const title=node('div','ref-titlebar');title.innerHTML='<span class="ref-app-title">'+icon('cube')+'<span>Minecraft Java Launcher</span></span><div class="ref-window-controls"><button id="ref-window-minimize" aria-label="最小化">−</button><button id="ref-window-close" aria-label="关闭启动器">×</button></div>';
+  const title=node('div','ref-titlebar');title.innerHTML='<span class="ref-app-title">'+icon('cube')+'<span>Minecraft Java Launcher</span></span><div class="ref-window-controls"><button id="ref-window-minimize" aria-label="最小化">−</button><button id="ref-window-maximize" aria-label="最大化">□</button><button id="ref-window-close" aria-label="关闭启动器">×</button></div>';
   body.prepend(title);
-  for(const [id,action] of [['ref-window-minimize','minimize'],['ref-window-close','close']])$(id).onclick=()=>window.starquill.windowControl?.(action);
+  for(const [id,action] of [['ref-window-minimize','minimize'],['ref-window-maximize','maximize'],['ref-window-close','close']])$(id).onclick=()=>window.starquill.windowControl?.(action);
+  title.ondblclick=e=>{if(e.target.closest('.ref-window-controls,.ref-app-title'))return;window.starquill.windowControl?.('maximize');};
+  const maxButton=$('ref-window-maximize');
+  function setWindowState(state){
+    if(!maxButton)return;
+    const maximized=!!state?.maximized;
+    maxButton.textContent=maximized?'❐':'□';
+    maxButton.setAttribute('aria-label',maximized?'还原':'最大化');
+    maxButton.title=maximized?'还原':'最大化';
+  }
+  window.starquill.onWindowState?.(setWindowState);
   const nav=document.querySelector('.sidebar nav');
   const accountsNav=nav.querySelector('[data-page="accounts"]');if(accountsNav)accountsNav.hidden=true;
   const navIcons={home:'play',instances:'layers',market:'cube',settings:'settings',logs:'logs'};

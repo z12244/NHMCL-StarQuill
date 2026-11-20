@@ -176,25 +176,45 @@ app.whenReady().then(async()=>{
   const positionFile=path.join(home(),'window-position.json');
   let saved;
   try {saved=JSON.parse(await fs.readFile(positionFile,'utf8'));} catch {}
-  function restored(point){
-    const display=screen.getAllDisplays().find(d=>d.id===point?.displayId && Number.isInteger(point.x) && Number.isInteger(point.y) && point.x>=d.workArea.x && point.x<d.workArea.x+d.workArea.width && point.y>=d.workArea.y && point.y<d.workArea.y+d.workArea.height);
-    return launcherBounds(settings.windows,(display||screen.getPrimaryDisplay()).workArea,display?point:{});
+  if(Number.isInteger(saved?.width)&&Number.isInteger(saved?.height)){
+    try{settings.windows=windowSettings({...settings.windows,launcherWidth:saved.width,launcherHeight:saved.height});}catch{}
   }
-  win=new BrowserWindow({show:false,...restored(saved),resizable:false,maximizable:false,fullscreenable:false,frame:false,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  function restored(point){
+    const display=screen.getAllDisplays().find(d=>d.id===point?.displayId && Number.isInteger(point?.x) && Number.isInteger(point?.y) && point.x>=d.workArea.x && point.x<d.workArea.x+d.workArea.width && point.y>=d.workArea.y && point.y<d.workArea.y+d.workArea.height);
+    const previous=display?point:{};
+    return launcherBounds(settings.windows,(display||screen.getPrimaryDisplay()).workArea,previous);
+  }
+  const initial=restored(saved);
+  win=new BrowserWindow({show:false,...initial,resizable:true,maximizable:true,fullscreenable:false,frame:false,minWidth:720,minHeight:460,backgroundColor:'#f3eee7',title:'NHMCL-StarQuill · 星翎启动器',icon:path.join(__dirname,'..','assets','icon.png'),autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  let saveWindowTimer;
+  function writeWindowState(){
+    if(win.isDestroyed()||win.isMinimized())return;
+    const maximized=win.isMaximized();
+    const bounds=maximized?win.getNormalBounds():win.getBounds();
+    const state={x:bounds.x,y:bounds.y,width:bounds.width,height:bounds.height,displayId:screen.getDisplayMatching(bounds).id,maximized};
+    try{require('node:fs').writeFileSync(positionFile,JSON.stringify(state));}catch{}
+    settings.windows={...settings.windows,launcherWidth:bounds.width,launcherHeight:bounds.height};
+  }
+  function scheduleWindowSave(){
+    clearTimeout(saveWindowTimer);
+    saveWindowTimer=setTimeout(()=>{writeWindowState();persist().catch(()=>{});},250);
+  }
   function fitContent(){
-    const [width,height]=win.getContentSize();
-    win.webContents.setZoomFactor(Math.min(1,width/720,height/460));
+    if(!win.isDestroyed())win.webContents.setZoomFactor(1);
   }
   function refit(){
-    if(win.isDestroyed())return;
+    if(win.isDestroyed()||win.isMaximized())return;
     const bounds=win.getBounds();
-    win.setBounds(restored({...bounds,displayId:screen.getDisplayMatching(bounds).id}));
-    fitContent();
+    const display=screen.getDisplayMatching(bounds);
+    win.setBounds(launcherBounds(settings.windows,display.workArea,{...bounds,displayId:display.id}));
   }
   screen.on('display-removed',refit);screen.on('display-metrics-changed',refit);
-  win.once('closed',()=>{screen.removeListener('display-removed',refit);screen.removeListener('display-metrics-changed',refit);});
-  win.on('close',()=>{if(win.isMinimized())return;const bounds=win.getBounds();try{require('node:fs').writeFileSync(positionFile,JSON.stringify({x:bounds.x,y:bounds.y,displayId:screen.getDisplayMatching(bounds).id}));}catch{}});
-  win.on('resize',fitContent);
+  win.once('closed',()=>{clearTimeout(saveWindowTimer);screen.removeListener('display-removed',refit);screen.removeListener('display-metrics-changed',refit);});
+  win.on('close',()=>{clearTimeout(saveWindowTimer);writeWindowState();});
+  win.on('resize',()=>{fitContent();scheduleWindowSave();});
+  win.on('move',scheduleWindowSave);
+  win.on('maximize',()=>{send('window-state',{maximized:true});scheduleWindowSave();});
+  win.on('unmaximize',()=>{send('window-state',{maximized:false});scheduleWindowSave();});
   win.webContents.on('dom-ready',fitContent);
   gameVisibility=require('../shared/game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
   win.once('closed',()=>gameVisibility.stop());
@@ -202,7 +222,6 @@ app.whenReady().then(async()=>{
   win.on('app-command',(event,command)=>{if(command==='browser-backward'){event.preventDefault();send('navigate-back');}});
   fitContent();
   win.webContents.setVisualZoomLevelLimits(1,1).catch(()=>{});
-  win.webContents.on('zoom-changed',fitContent);
   win.webContents.on('before-input-event',(event,input)=>{if(input.key==='F11'||((input.control||input.meta)&&['+','-','=','0','Add','Subtract'].includes(input.key)))event.preventDefault();});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
   win.on('close',e=>{if(busy&&!closing){e.preventDefault();dialog.showMessageBox(win,{type:'question',message:'当前任务尚未结束，是否关闭？',detail:'下载将保留已完成文件与续传数据；运行中的游戏将结束。',buttons:['继续运行','关闭并结束任务'],defaultId:0,cancelId:0}).then(({response})=>{if(response===1){closing=true;controller?.abort();child?.kill();app.exit(0);}});}});
@@ -218,7 +237,7 @@ app.whenReady().then(async()=>{
   // Reveal only after the new shell and local bootstrap have finished.
   // Allow the hidden compositor to replace its initial frame before showing.
   await win.webContents.executeJavaScript('Promise.resolve(window.starquillReady).then(() => Promise.race([document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))),new Promise(resolve => setTimeout(resolve,450))]))');
-  if(!win.isDestroyed()){win.show();win.webContents.setBackgroundThrottling(true);}
+  if(!win.isDestroyed()){if(saved?.maximized)win.maximize();win.show();send('window-state',{maximized:win.isMaximized()});win.webContents.setBackgroundThrottling(true);}
   setImmediate(()=>{
     for(const account of accounts.accounts)queueAccountAppearance(account).catch(()=>{});
     scanRuntimes().catch(e=>log(e.message));
@@ -229,7 +248,7 @@ app.on('window-all-closed',()=>app.quit());
 ipcMain.handle('boot',async()=>({settings:publicSettings(),welcomeNeeded,instances:await local(),accounts:await accountView(),accountError,javaItems,skinServers:PRESETS,totalMemory:memoryLimit(),physicalMemory:(os.totalmem()/1024**3).toFixed(1),state,version:require('../../package.json').displayVersion||app.getVersion()}));
 ipcMain.handle('versions',async(_,force=false)=>catalog.refresh(force===true));
 ipcMain.handle('instances',()=>local());
-ipcMain.handle('window-control',(event,command)=>{if(event.sender!==win?.webContents||!['minimize','close'].includes(command))return false;if(command==='minimize')win.minimize();else win.close();return true;});
+ipcMain.handle('window-control',(event,command)=>{if(event.sender!==win?.webContents||!['minimize','maximize','close'].includes(command))return false;if(command==='minimize')win.minimize();else if(command==='maximize'){if(win.isMaximized())win.unmaximize();else win.maximize();}else win.close();return true;});
 ipcMain.handle('install-vanilla',async(_,id)=>runJob(async signal=>{const manifest=await catalog.refresh(false);if(!manifest.versions.some(v=>v.id===id))throw Error('请选择官方游戏版本');const game=engine({version:id,signal,onProgress:p=>status('downloading','安装 Minecraft '+id,p.total?p.done/p.total*100:0)});await game.prepare();await markStandalone(settings.root,id);settings.selected=id;await persist();send('instances-changed',await local());send('market-changed',{selected:id});return id;},'安装 Minecraft 原版'));
 ipcMain.handle('system-memory',()=>memorySnapshot());
 ipcMain.handle('crash-latest',()=>lastCrash);
@@ -248,9 +267,12 @@ ipcMain.handle('settings',async(_,o)=>{requireIdle();validate({version:o.selecte
   const importedIsolation=samePath(pendingIsolation?.root,o.root)?pendingIsolation:rootChanged?await detectIsolation(o.root):settings.importedIsolation;
   settings.customRoot=path.relative(path.join(portable(),'.minecraft'),path.resolve(o.root))?path.resolve(o.root):null;
   settings={...settings,hideOnGameStart:o.hideOnGameStart===undefined?settings.hideOnGameStart:o.hideOnGameStart===true,windows,importedIsolation,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:o.optimizeMemory===undefined?settings.optimizeMemory:o.optimizeMemory===true,memoryOptimizationVersion:1,java:o.java,javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,microsoftClientId:resolveClientId(o.microsoftClientId),selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();
-  const previous=win.getBounds(), area=screen.getDisplayMatching(previous).workArea;
-  const bounds=launcherBounds(windows,area,previous);
-  if(previous.width!==bounds.width||previous.height!==bounds.height) win.setBounds(bounds);
+  const previous=win.isMaximized()?win.getNormalBounds():win.getBounds(), area=screen.getDisplayMatching(previous).workArea;
+  const bounds=launcherBounds(windows,area,{x:previous.x,y:previous.y});
+  if(previous.width!==bounds.width||previous.height!==bounds.height){
+    if(win.isMaximized())win.unmaximize();
+    win.setBounds(bounds);
+  }
   pendingIsolation=null;catalog.mode=settings.source;catalog.root=settings.root;catalog.file=path.join(settings.root,'.starquill','catalog-cache.json');if(rootChanged){latestDiagnosis=null;diagnosisGeneration++;send('ai-diagnosis',await getDiagnosis());lastCrash=await latestCrash(settings.root);send('crash-report',lastCrash);}await changedAccounts();return {settings:publicSettings(),instances:await local()};
 });
 ipcMain.handle('login-cache-import',async()=>{

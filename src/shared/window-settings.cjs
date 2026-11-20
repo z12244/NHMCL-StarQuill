@@ -16,7 +16,8 @@ function windowSettings(input = {}) {
   return Object.fromEntries(Object.keys(defaults).map(key => [key, result[key]]));
 }
 function launcherBounds(prefs, area, previous = {}) {
-  const width = Math.min(area.width,prefs.launcherWidth), height = Math.min(area.height,prefs.launcherHeight);
+  const width = Math.min(area.width, Number.isInteger(previous.width) ? previous.width : prefs.launcherWidth);
+  const height = Math.min(area.height, Number.isInteger(previous.height) ? previous.height : prefs.launcherHeight);
   const position = (old,start,space,size) => Math.round(Math.min(start+space-size,Math.max(start,old ?? (start+(space-size)/2))));
   return {width,height,x:position(previous.x,area.x,area.width,width),y:position(previous.y,area.y,area.height,height)};
 }
