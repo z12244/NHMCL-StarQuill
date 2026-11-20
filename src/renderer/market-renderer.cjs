@@ -6,7 +6,7 @@
  function filters(){
    const kind=selectedKind(),target=kind==='modpack'?null:selectedTarget();
    const loader=$('market-loader').value;
-   return {kind,game:target?.game||$('market-game').value.trim(),loader:['mod','modpack'].includes(kind)?(loader==='auto'?target?.loader||'':loader==='all'?'':loader):'',sort:$('market-sort').value};
+   return {kind,game:target?.game||manualGame,loader:['mod','modpack'].includes(kind)?(loader==='auto'?target?.loader||'':loader==='all'?'':loader):'',sort:$('market-sort').value};
  }
  function loadIcon(node,item){node.classList.add('resource-art');if(!item.icon)return;api.resourceIcon(item.icon).then(src=>{if(!src||!node.isConnected)return;const img=document.createElement('img');img.alt=item.title+' 图标';img.width=64;img.height=64;img.src=src;node.replaceChildren(img);}).catch(()=>{});}
  const message=t=>$('market-message').textContent=t;
@@ -22,12 +22,20 @@
  $('optifine-version').disabled=disabled||!optifineTicket;
  if($('install-optifine').checked && (!optifineTicket||!$('optifine-version').value))$('loader-install').disabled=true;
  $('market-plan').disabled=disabled||!details?.versions?.length||details.canInstall===false;$('market-install').disabled=disabled||!currentPlan;
- if(catalogDirty&&!disabled){catalogDirty=false;gameOptions();loaderReset();}
+ if(catalogDirty&&!disabled){catalogDirty=false;targetSummary();gameOptions();loaderReset();}
  }
  async function loadTargets(){const b=await api.marketBoot();targets=b.targets;const selected=$('market-target').options.length?$('market-target').value:settings.selected;$('market-target').replaceChildren(new Option('仅浏览 · 全部版本',''));for(const t of targets)$('market-target').add(new Option(t.id+' · '+(t.loader||'原版'),t.id));if(targets.some(t=>t.id===selected))$('market-target').value=selected;targetSummary();}
  function targetSummary(){
-   const t=targets.find(t=>t.id===$('market-target').value);$('market-game').value=(selectedKind()!=='modpack'&&t)?t.game:manualGame;
-   $('market-games').replaceChildren(...[...new Set([...targets.map(t=>t.game),...remote.filter(v=>v.type==='release').map(v=>v.id)])].map(game=>new Option(game,game)));
+   const t=selectedTarget(),lockedToTarget=selectedKind()!=='modpack'&&!!t;
+   const releases=remote.filter(v=>v.type==='release').map(v=>v.id);
+   const games=new Set([...(releases.length?releases:['1.21.1','1.16.5','1.12.2','1.7.10']),...targets.map(t=>t.game)].filter(Boolean));
+   const picker=$('market-game'),custom=$('market-custom-game');
+   const typing=!lockedToTarget&&picker.value===':custom';
+   if(manualGame&&!typing)games.add(manualGame);
+   picker.replaceChildren(new Option('全部版本',''),...Array.from(games,id=>new Option(id,id)),new Option('手动输入版本…',':custom'));
+   picker.value=lockedToTarget?t.game:typing?':custom':manualGame;
+   custom.classList.toggle('hidden',picker.value!==':custom');
+   custom.value=manualGame;
    $('market-target-info').textContent=$('market-kind').value==='modpack'?'整合包将使用作者指定的游戏与加载器，创建新版本。':t?`Minecraft ${t.game} · ${t.loader||'原版（安装模组前请先安装加载器）'} · ${t.folder}`:'可浏览全部资源。安装模组时请选择带加载器的本地版本。';}
  function gameOptions(){const choice=$('loader-game').value||'1.21.1',groupChoice=$('loader-family').value;let games=remote.filter(v=>$('install-snapshots').checked||v.type==='release');if(!games.length)games=[...new Set(['1.21.1',...targets.map(t=>t.game)])].map(id=>({id,type:'release'}));const groups=window.versionGroups.groupVersions(games,[],$('install-snapshots').checked);$('loader-family').replaceChildren();for(const g of groups)$('loader-family').add(new Option(g.label,g.id));$('loader-family').value=groups.some(g=>g.id===groupChoice)?groupChoice:(groups.find(g=>g.versions.some(v=>v.id===choice))||groups[0])?.id;const versions=groups.find(g=>g.id===$('loader-family').value)?.versions||[];$('loader-game').replaceChildren();for(const v of versions)$('loader-game').add(new Option(v.id,v.id));if(versions.some(v=>v.id===choice))$('loader-game').value=choice;}
  function clearDetail(){browse.classList.remove('detail-open');detailSerial++;details=null;$('market-detail').classList.add('hidden');$('market-detail-empty').classList.remove('hidden');}
@@ -86,7 +94,8 @@
  $('market-query').onkeydown=e=>{if(e.key==='Enter'&&!$('market-search').disabled)$('market-search').click();};
  $('market-prev').onclick=()=>search(Math.max(0,offset-20));
  $('market-next').onclick=()=>search(offset+20);
- for(const id of ['market-loader','market-kind','market-target','market-sort','market-game'])$(id).onchange=()=>{if(id==='market-game')manualGame=$(id).value.trim();targetSummary();search();};
+ $('market-custom-game').onchange=()=>{manualGame=$('market-custom-game').value.trim();search();};
+ for(const id of ['market-loader','market-kind','market-target','market-sort','market-game'])$(id).onchange=()=>{if(id==='market-game'&&$(id).value!==':custom')manualGame=$(id).value;targetSummary();search();};
  bind('market-plan',async()=>{if(!details||details.canInstall===false)return;const plan=await api.marketPlan({source:details.project.source,id:details.project.id,versionId:$('market-file-version').value,target:$('market-target').value,chineseName:$('market-chinese').value,name:$('market-pack-name').value.trim()});
  if(plan.type==='manual-pack'){
    $('market-detail-description').textContent='作者要求从项目页面下载此整合包。下载完成后，在「导入整合包」中选择该文件。';

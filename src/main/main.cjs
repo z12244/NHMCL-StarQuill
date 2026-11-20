@@ -281,8 +281,16 @@ ipcMain.handle('welcome-complete',async(_,input)=>{requireIdle();if(!['offline',
 ipcMain.handle('account-add',async(_,name)=>{requireIdle();await accounts.addOffline(name);return changedAccounts();});
 ipcMain.handle('account-select',async(_,id)=>{requireIdle();await accounts.select(id);queueAccountAppearance(accounts.current()).catch(()=>{});return changedAccounts();});
 ipcMain.handle('account-remove',async(_,id)=>{requireIdle();if(accounts.accounts.length<=1)throw Error('请至少保留一个账号');const account=accounts.accounts.find(a=>a.id===id);externalBusy=true;try{if(account?.type==='authlib')await externalAuth.invalidate(account).catch(()=>log('皮肤站暂不可用：已移除本地登录，远端会话撤销未确认'));await accounts.remove(id);return changedAccounts();}finally{externalBusy=false;}});
+const creditEntries=require('../assets/credits/entries.json');
+ipcMain.handle('credits-list',()=>{
+  const {displayVersion,version}=require('../../package.json');
+  return creditEntries.map(entry=>entry.id==='nhmcl'?{...entry,desc:'当前版本：测试版 '+displayVersion+'（'+version+'）'}:entry);
+});
 ipcMain.handle('open-feedback',()=>shell.openExternal('https://github.com/z12244/NHMCL-StarQuill/issues/new/choose'));
-ipcMain.handle('open-website',()=>shell.openExternal('https://nhmcl.iamiya.top/#home'));
+ipcMain.handle('credit-open',(_,id)=>{
+  const entry=creditEntries.find(item=>item.id===id);
+  if(entry?.url)return shell.openExternal(entry.url);
+});
 function offlineSkinTarget(input){
   const account=input?.id===undefined?accounts.current():accounts.accounts.find(a=>a.id===input.id);
   if(account?.type!=='offline')throw Error('请选择离线账号');

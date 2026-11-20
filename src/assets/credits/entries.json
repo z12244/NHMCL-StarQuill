@@ -1,0 +1,122 @@
+[
+  {
+    "id": "starquill",
+    "group": "关于",
+    "name": "StarQuill_z12244",
+    "desc": "星翎启动器的开发者，负责整体设计与实现",
+    "button": "GitHub 主页",
+    "url": "https://github.com/z12244"
+  },
+  {
+    "id": "nanhu",
+    "group": "关于",
+    "name": "南湖模作社",
+    "desc": "上海南湖职业技术学院MC社团，参与启动器的测试与发行",
+    "button": "加入社群",
+    "url": ""
+  },
+  {
+    "id": "nhmcl",
+    "group": "关于",
+    "name": "NHMCL-StarQuill · 星翎启动器",
+    "desc": "当前版本：测试版 beta-1.0.4（1.0.4-beta.0）",
+    "button": "访问官网",
+    "url": "https://nhmcl.iamiya.top"
+  },
+  {
+    "id": "Cosmos_Duck_59",
+    "group": "特别鸣谢 · 贡献者",
+    "name": "Cosmos_Duck_59",
+    "desc": "帮助编写一部分启动器源码",
+    "button": "",
+    "url": ""
+  },
+  {
+    "id": "烬艾",
+    "group": "特别鸣谢 · 贡献者",
+    "name": "烬艾",
+    "desc": "提供官网域名及网页服务器与协助管理网页后端",
+    "button": "",
+    "url": ""
+  },
+  {
+    "id": "HuangWeiLong-dot",
+    "group": "特别鸣谢 · 贡献者",
+    "name": "HuangWeiLong-dot",
+    "desc": "为beta版的测试提供新构想与协助管理GitHub仓库",
+    "button": "GitHub 页面",
+    "url": "https://github.com/HuangWeiLong-dot"
+  },
+  {
+    "id": "CHNAxero_Hua",
+    "group": "特别鸣谢 · 贡献者",
+    "name": "CHNAxero_Hua",
+    "desc": "提供新的想法与GT方向的支持",
+    "button": "GitHub 页面",
+    "url": "https://github.com/axerohua"
+  },
+  {
+    "id": "littleskin",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "LittleSkin",
+    "desc": "提供皮肤站外置登录（Yggdrasil / authlib-injector）",
+    "button": "访问皮肤站",
+    "url": "https://littleskin.cn/"
+  },
+  {
+    "id": "mua",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "MUA 用户中心",
+    "desc": "提供皮肤站统一登录",
+    "button": "访问 MUA",
+    "url": "https://skin.mualliance.ltd/"
+  },
+  {
+    "id": "bangbang93",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "bangbang93",
+    "desc": "提供 BMCLAPI 国内镜像源与 Forge 安装工具",
+    "button": "BMCLAPI 文档",
+    "url": "https://bmclapidoc.bangbang93.com/"
+  },
+  {
+    "id": "mcmod",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "MC 百科",
+    "desc": "提供 Mod 中文名称、译名与整合包条目信息",
+    "button": "打开百科",
+    "url": "https://www.mcmod.cn/"
+  },
+  {
+    "id": "java-wrapper",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "00ll00",
+    "desc": "Java Launch Wrapper 1.4.4（MIT），Windows 原生启动包装",
+    "button": "GitHub 页面",
+    "url": "https://github.com/00ll00/java_launch_wrapper"
+  },
+  {
+    "id": "modrinth",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "Modrinth",
+    "desc": "提供资源、整合包与版本 API",
+    "button": "访问 Modrinth",
+    "url": "https://modrinth.com/"
+  },
+  {
+    "id": "curseforge",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "CurseForge",
+    "desc": "提供资源与整合包 API",
+    "button": "访问 CurseForge",
+    "url": "https://www.curseforge.com/"
+  },
+  {
+    "id": "deepseek",
+    "group": "特别鸣谢 · 开源项目与平台",
+    "name": "DeepSeek",
+    "desc": "提供内置 AI 助手的模型接口",
+    "button": "访问 DeepSeek",
+    "url": "https://www.deepseek.com/"
+  }
+]

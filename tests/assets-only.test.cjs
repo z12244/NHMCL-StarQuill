@@ -1,0 +1,42 @@
+const test=require('node:test');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path'),crypto=require('node:crypto');
+const {Game}=require('../src/shared/game.cjs');
+const {layout,writeJSON}=require('../src/shared/storage.cjs');
+
+test('assets-only local index prepares virtual resources and repairs a missing cached object',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-assets-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const id='asset-fixture',p=layout(root,id),bytes=Buffer.from('sound'),hash=crypto.createHash('sha1').update(bytes).digest('hex');
+  await writeJSON(p.json,{id,assets:'offline-index',mainClass:'Game'});
+  await fs.writeFile(p.jar,'fixture');
+  await writeJSON(path.join(p.assets,'indexes/offline-index.json'),{virtual:true,objects:{'sample.ogg':{hash,size:bytes.length}}});
+  let calls=0;
+  const prepare=()=>new Game({root,version:id,name:'Tester',memory:1,advanced:{skipFileCheck:true},fetcher:async()=>{calls++;return new Response(bytes);}}).prepare({forLaunch:true});
+  await prepare();
+  assert.equal(await fs.readFile(path.join(p.assets,'virtual/offline-index/sample.ogg'),'utf8'),'sound');
+  await prepare();
+  assert.equal(calls,1);
+  await fs.unlink(path.join(p.assets,'objects',hash.slice(0,2),hash));
+  await prepare();
+  assert.equal(calls,2);
+});
+test('1.5.2 assets-only prepares both mappings and repairs same-size damage on warm launch',async t=>{
+  const root=await fs.mkdtemp(path.join(os.tmpdir(),'sq-pre16-'));
+  t.after(()=>fs.rm(root,{recursive:true,force:true}));
+  const id='1.5.2',p=layout(root,id),bytes=Buffer.from('sound');
+  const hash=crypto.createHash('sha1').update(bytes).digest('hex');
+  await writeJSON(p.json,{id,assets:'pre-1.6',mainClass:'Game',minecraftArguments:'--assetIndex ${assets_index_name}'});
+  await fs.writeFile(p.jar,'jar');
+  await writeJSON(path.join(p.assets,'indexes/pre-1.6.json'),{virtual:true,map_to_resources:true,objects:{'a.ogg':{hash,size:5}}});
+  let calls=0;
+  const prepare=()=>new Game({root,version:id,name:'Tester',memory:1,advanced:{skipFileCheck:true},fetcher:async()=>{calls++;return new Response(bytes);}}).prepare({forLaunch:true});
+  const first=await prepare();
+  assert.ok(first.args.includes('pre-1.6'));
+  const object=path.join(p.assets,'objects',hash.slice(0,2),hash);
+  const mapped=path.join(first.cwd,'resources','a.ogg');
+  await fs.writeFile(mapped,'xxxxx');await fs.writeFile(object,'xxxxx');
+  await prepare();
+  assert.equal(calls,2);
+  for(const file of [object,mapped,path.join(p.assets,'virtual/pre-1.6/a.ogg')])assert.deepEqual(await fs.readFile(file),bytes);
+});

@@ -21,7 +21,7 @@ npm run dist -- --config.directories.output=dist
 
 ## Linux
 
-`scripts/build-linux.sh` 依赖 `build/beta-1.0.4.asar`，并会校验其 SHA-256（`55a98e35ecd65b96f83da08c35a054c2e885c6339f29339c950776148f7683b5`）。该文件不在仓库中：
+`scripts/build-linux.sh` 依赖 `build/beta-1.0.4.asar`，并会校验其 SHA-256（`c1acd9a73092b01b1d1b065e637e86ca0bb91794ea6353332a18a69b4240d53c`）。该文件不在仓库中：
 
 - 如果已有 Windows 构建产物，脚本会**自动**把 `dist/win-unpacked/resources/app.asar` 复制到 `build/beta-1.0.4.asar`；
 - 也可以手动从 Release 附件的 `win-unpacked/resources/app.asar` 复制；
@@ -41,4 +41,4 @@ bash scripts/build-linux.sh
 
 - `npm run dist` 会先生成 `dist/win-unpacked/resources/app.asar`，Linux 构建直接复用它即可。
 - 构建可通过 `NHMCL_CURSEFORGE_API_KEY` 注入项目凭据。
-beta-1.0.4 支持随包发布的浅色、深色及跟随系统外观。启动器不支持自定义 CSS、外部样式或社区主题包。
+beta-1.0.4 支持随包发布的浅色、深色及跟随系统外观。在“启动设置 → 常规”可导入本地 CSS 文件（最大 1 MiB），立即应用并随启动器配置保存，也可随时移除。

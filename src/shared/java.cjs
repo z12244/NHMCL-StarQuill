@@ -17,6 +17,7 @@ async function inspectJava(file){
   try{file=await fs.realpath(file);const {stdout,stderr}=await exec(file,['-XshowSettings:properties','-version'],{windowsHide:true,timeout:10000,maxBuffer:256*1024});const info=parseJava(stdout+'\n'+stderr,file);if(info.home){try{info.path=await fs.realpath(path.join(info.home,'bin',javaBinary));}catch{}}return info;}catch{throw Error('Java 无法运行：'+file);}
 }
 async function registryHomes(){
+  if (process.platform === 'darwin') return ['/Library/Java/JavaVirtualMachines',path.join(os.homedir(),'Library/Java/JavaVirtualMachines')];
   if (!windows) return ['/usr/lib/jvm', '/usr/java', path.join(os.homedir(),'.sdkman','candidates','java')];
   const roots=['HKLM\\SOFTWARE\\JavaSoft','HKLM\\SOFTWARE\\Eclipse Adoptium','HKLM\\SOFTWARE\\WOW6432Node\\JavaSoft','HKCU\\SOFTWARE\\JavaSoft'];
   const rows=await Promise.all(roots.map(async key=>{try{return (await exec('reg.exe',['query',key,'/s'],{windowsHide:true,timeout:3000,maxBuffer:1024*1024})).stdout;}catch{return '';}}));
@@ -67,7 +68,7 @@ function javaRequirement(meta={}){
 function requiredJava(meta){return javaRequirement(meta).preferred;}
 function javaCompatible(major,required){const r=normalizeJavaRequirement(required);return Number.isInteger(major)&&major>=r.min&&major<=r.max&&(!r.majors||r.majors.includes(major));}
 function describeJava(required){const r=normalizeJavaRequirement(required);return r.majors&&r.majors.length>1?r.majors.join(' / '):r.min===r.max?String(r.min):`${r.min}–${r.max}`;}
-function chooseJava(items,required,memory){const requirement=normalizeJavaRequirement(required),compatible=items.filter(j=>javaCompatible(j.major,requirement)&&j.bits===64&&/amd64|x86_64|x64/i.test(j.arch));
+function chooseJava(items,required,memory){const requirement=normalizeJavaRequirement(required),compatible=items.filter(j=>javaCompatible(j.major,requirement)&&j.bits===64&&(/amd64|x86_64|x64/i.test(j.arch)||(process.platform==='darwin'&&process.arch==='arm64'&&/arm64|aarch64/i.test(j.arch))));
   compatible.sort((a,b)=>Number(b.bundled)-Number(a.bundled)||Number(b.major===requirement.preferred)-Number(a.major===requirement.preferred)||b.major-a.major||b.version.localeCompare(a.version,undefined,{numeric:true}));
   if(!compatible.length)throw Error(`未找到适合此版本的 64 位 Java ${describeJava(requirement)}。请安装后重新扫描，或在 Java 设置中手动选择。`);return compatible[0];}
 module.exports={memoryLimit,parseJava,inspectJava,scanJava,requiredJava,javaRequirement,normalizeJavaRequirement,javaCompatible,describeJava,chooseJava};

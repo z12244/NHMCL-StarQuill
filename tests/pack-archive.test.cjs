@@ -51,3 +51,11 @@ test('cancelling a tiny compressed entry settles without waiting for yauzl legac
  await assert.rejects(extractArchiveFiles(file,[{entry:'a.txt',path:'a.txt'},{entry:'b.txt',path:'b.txt'}],target,{signal:controller.signal,onProgress:()=>controller.abort()}),/取消|abort/i);
  assert.deepEqual(await fs.readdir(target),[]);
 });
+test('later CRC failure restores overwritten files and removes newly published files',async t=>{
+  const root=await temp(t),target=path.join(root,'target'),file=path.join(root,'pack.zip');
+  await fs.mkdir(target);await fs.writeFile(path.join(target,'a'),'original');
+  await archive(file,[['a','replacement'],['b','new'],['c','late corruption',{compress:false}]]);
+  const bytes=await fs.readFile(file);bytes[bytes.indexOf('late corruption')]^=1;await fs.writeFile(file,bytes);
+  await assert.rejects(extractArchiveFiles(file,['a','b','c'].map(name=>({entry:name,path:name})),target,{overwrite:true}),/CRC32/);
+  assert.deepEqual(await fs.readdir(target),['a']);assert.equal(await fs.readFile(path.join(target,'a'),'utf8'),'original');
+});

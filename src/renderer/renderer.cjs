@@ -72,8 +72,6 @@ async function accountAction(f){try{renderAccounts(await f());}catch(e){toast(e.
 function renderAccounts(data){accountData=data;const list=el('account-list');list.replaceChildren();for(const a of data.accounts){const row=document.createElement('div');row.className='account-row'+(a.id===data.active?' selected':'');const info=document.createElement('div'),name=document.createElement('b'),desc=document.createElement('p');name.textContent=a.name;desc.textContent=(a.type==='microsoft'?'微软正版':a.type==='authlib'?'皮肤站 · '+a.server.name:'离线账号')+(a.needsLogin?' · 需要重新登录':'')+(a.id===data.active?' · 当前使用':'');info.append(name,desc);const buttons=document.createElement('div');buttons.className='row-actions';const use=document.createElement('button');use.className='secondary';use.textContent=a.id===data.active?'已选择':'使用';use.onclick=()=>accountAction(()=>api.selectAccount(a.id));const remove=document.createElement('button');remove.className='text-button';remove.textContent='移除';remove.onclick=()=>accountAction(()=>api.removeAccount(a.id));const preview=document.createElement('button');preview.className='secondary';preview.textContent='观看 3D 皮肤';preview.onclick=()=>window.appearanceUI.show(a);buttons.append(use,preview,remove);row.append(info,buttons);list.append(row);}
   updateSummary();renderState(currentState);window.appearanceUI?.sync(data);
 }
-action('feedback',()=>api.openFeedback());
-action('visit-website',()=>api.openWebsite());
 action('offline-add',async()=>{
   try{
     renderAccounts(await api.addAccount(el('offline-name').value.trim()));el('offline-name').value='';
