@@ -80,6 +80,28 @@
     themeSelect.value=window.officialTheme.current();
     themeSelect.onchange=()=>window.officialTheme.select(themeSelect.value);
     themeLabel.append(themeSelect);panelMap.appearance.append(themeLabel);
+    const cssHeading=node('h3','','自定义样式');
+    const cssLabel=node('label','','CSS 文件路径');
+    const cssPath=node('input');cssPath.id='custom-css-path';cssPath.readOnly=true;cssPath.placeholder='未选择自定义样式文件';
+    cssLabel.append(cssPath);
+    const cssTools=node('div','section-tools');
+    const cssPick=node('button','secondary','选择文件…');cssPick.type='button';
+    const cssClear=node('button','secondary','恢复默认');cssClear.type='button';
+    cssTools.append(cssPick,cssClear);
+    const cssHelp=node('p','help','选择本地 CSS 文件并持久化应用；若文件不可用将自动忽略，可随时恢复默认样式。');
+    panelMap.appearance.append(cssHeading,cssLabel,cssTools,cssHelp);
+    async function setCustomCssPath(path){
+      try{
+        const result=await window.starquill.saveCustomCss(path);
+        cssPath.value=result?.customCssPath||'';
+        toast(path?'自定义样式已应用':'已恢复默认样式');
+      }catch(e){toast(e.message);}
+    }
+    cssPick.onclick=async()=>{const file=await window.starquill.selectCustomCss?.();if(file)await setCustomCssPath(file);};
+    cssClear.onclick=()=>setCustomCssPath('');
+    window.starquillReady?.then(()=>{
+      try{const path=settings?.customCssPath; if(path!==undefined)cssPath.value=path||'';}catch{}
+    }).catch(()=>{});
     const save=$('save');
     for(let i=0;i<children.length;i++){
       const e=children[i];if(e===save||e.tagName==='HR')continue;

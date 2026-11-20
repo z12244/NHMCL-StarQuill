@@ -41,7 +41,7 @@ const auth=new MicrosoftAuth({fetcher});
 const deviceLogin=new (require('../shared/device-login.cjs').DeviceLogin)({clipboard,openExternal:url=>shell.openExternal(url)});
 const externalAuth=new YggdrasilAuth({fetcher});
 let gameVisibility;
-let win,child,busy=false,controller,settings,logs=[],closing=false,gameStopRequested=false,sessionLogs=null,lastCrash=null;
+let win,child,busy=false,controller,settings,logs=[],closing=false,gameStopRequested=false,sessionLogs=null,lastCrash=null,customCssKey;
 let welcomeNeeded=true,lastAuthFailure=null;
 function authFailureDetails(error){if(!error.details)return null;lastAuthFailure={time:new Date().toISOString(),clientId:settings.microsoftClientId,version:require('../../package.json').displayVersion,...error.details};log('微软登录诊断：'+JSON.stringify(lastAuthFailure));return lastAuthFailure;}
 const appearanceSync=new Map(),appearanceResults=new Map();
@@ -56,7 +56,7 @@ const systemLoginDir=process.platform==='darwin' ? macData : process.platform===
 const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools','user-storage-key.exe');
 let loginDatabase;
 function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform!=='win32' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
-const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
+const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16,customCssPath:''});
 const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..','..'),app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
 function status(phase,text,percent=0){state={phase,text,percent:Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):0};send('state',state);}
@@ -108,6 +108,16 @@ async function getDiagnosis(){
   if(latestDiagnosis?.root===settings.root)return latestDiagnosis.result;
   try{return JSON.parse(await fs.readFile(diagnosisFile(settings.root),'utf8'));}catch{return null;}
 }
+async function applyCustomCss(){
+  if(!win||win.isDestroyed())return;
+  if(customCssKey){try{await win.webContents.removeInsertedCSS(customCssKey);}catch{}customCssKey=null;}
+  const file=settings?.customCssPath;
+  if(typeof file!=='string'||!file.trim())return;
+  try{
+    const css=await fs.readFile(file,'utf8');
+    customCssKey=await win.webContents.insertCSS(css);
+  }catch(e){log('自定义样式加载失败：'+e.message);}
+}
 async function analyzeFailure(crash,report,reason){
   const token=++diagnosisGeneration,root=crash.root;
   const recent=crash.logs.text().slice(-14000);
@@ -147,6 +157,7 @@ app.whenReady().then(async()=>{
   settings.microsoftClientId=resolveClientId(settings.microsoftClientId);
   settings.javaMajor=validMajor(settings.javaMajor)?settings.javaMajor:21;
   settings.memory=Math.min(memoryLimit(),Math.max(1,Math.floor(Number(settings.memory)||4)));
+  if(typeof settings.customCssPath!=='string'||settings.customCssPath.length>4096)settings.customCssPath='';
   const adjacentRoot=path.join(portable(),'.minecraft');
   // Previous profiles stored even the portable default as an absolute path. Only
   // persist an external root as a choice after the user explicitly saves it.
@@ -218,6 +229,7 @@ app.whenReady().then(async()=>{
   // Reveal only after the new shell and local bootstrap have finished.
   // Allow the hidden compositor to replace its initial frame before showing.
   await win.webContents.executeJavaScript('Promise.resolve(window.starquillReady).then(() => Promise.race([document.fonts.ready.then(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))),new Promise(resolve => setTimeout(resolve,450))]))');
+  await applyCustomCss();
   if(!win.isDestroyed()){win.show();win.webContents.setBackgroundThrottling(true);}
   setImmediate(()=>{
     for(const account of accounts.accounts)queueAccountAppearance(account).catch(()=>{});
@@ -247,7 +259,9 @@ ipcMain.handle('settings',async(_,o)=>{requireIdle();validate({version:o.selecte
   const rootChanged=!samePath(o.root,settings.root);
   const importedIsolation=samePath(pendingIsolation?.root,o.root)?pendingIsolation:rootChanged?await detectIsolation(o.root):settings.importedIsolation;
   settings.customRoot=path.relative(path.join(portable(),'.minecraft'),path.resolve(o.root))?path.resolve(o.root):null;
-  settings={...settings,hideOnGameStart:o.hideOnGameStart===undefined?settings.hideOnGameStart:o.hideOnGameStart===true,windows,importedIsolation,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:o.optimizeMemory===undefined?settings.optimizeMemory:o.optimizeMemory===true,memoryOptimizationVersion:1,java:o.java,javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,microsoftClientId:resolveClientId(o.microsoftClientId),selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();
+  const customCssPath=typeof o.customCssPath==='string'&&o.customCssPath.length<=4096?o.customCssPath:(settings.customCssPath||'');
+  settings={...settings,hideOnGameStart:o.hideOnGameStart===undefined?settings.hideOnGameStart:o.hideOnGameStart===true,windows,importedIsolation,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:o.optimizeMemory===undefined?settings.optimizeMemory:o.optimizeMemory===true,memoryOptimizationVersion:1,java:o.java,javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,microsoftClientId:resolveClientId(o.microsoftClientId),selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency,customCssPath};await persist();
+  await applyCustomCss();
   const previous=win.getBounds(), area=screen.getDisplayMatching(previous).workArea;
   const bounds=launcherBounds(windows,area,previous);
   if(previous.width!==bounds.width||previous.height!==bounds.height) win.setBounds(bounds);
@@ -277,6 +291,8 @@ ipcMain.handle('migrate',async()=>{requireIdle();const r=await dialog.showOpenDi
 ipcMain.handle('java',async()=>{const r=await dialog.showOpenDialog(win,{title:'选择 Java 可执行文件',properties:['openFile'],...(process.platform==='win32'?{filters:[{name:'Java',extensions:['exe']}]}:{})});return r.canceled?null:inspectJava(r.filePaths[0]);});
 ipcMain.handle('scan-java',()=>scanRuntimes());
 ipcMain.handle('scan-java-folder',async()=>{requireIdle();const r=await dialog.showOpenDialog(win,{title:'选择 Java 所在文件夹（扫描最多 5 层子目录）',properties:['openDirectory']});if(r.canceled)return null;settings.javaRoots=[...new Set([...(settings.javaRoots||[]),r.filePaths[0]])].slice(-20);await persist();if(javaScan)await javaScan;return scanRuntimes();});
+ipcMain.handle('custom-css-select',async()=>{requireIdle();const r=await dialog.showOpenDialog(win,{title:'选择自定义样式文件',properties:['openFile'],filters:[{name:'CSS 样式表',extensions:['css']},{name:'所有文件',extensions:['*']}]});return r.canceled?null:r.filePaths[0];});
+ipcMain.handle('custom-css-save',async(_,customCssPath)=>{requireIdle();if(typeof customCssPath!=='string'||customCssPath.length>4096)throw Error('自定义样式路径无效');settings.customCssPath=customCssPath;await persist();await applyCustomCss();return {customCssPath:settings.customCssPath};});
 ipcMain.handle('welcome-complete',async(_,input)=>{requireIdle();if(!['offline','skip','skin'].includes(input?.mode))throw Error('请选择进入方式');if(input.mode==='offline')await accounts.addOffline(input.name);if(safeStorage.isEncryptionAvailable())await writeJSON(path.join(home(),'welcome.json'),{receipt:safeStorage.encryptString('starquill-welcome-v1:'+os.hostname()).toString('base64')});else await writeJSON(path.join(home(),'welcome.json'),{completedOn:os.hostname()});welcomeNeeded=false;return changedAccounts();});
 ipcMain.handle('account-add',async(_,name)=>{requireIdle();await accounts.addOffline(name);return changedAccounts();});
 ipcMain.handle('account-select',async(_,id)=>{requireIdle();await accounts.select(id);queueAccountAppearance(accounts.current()).catch(()=>{});return changedAccounts();});
