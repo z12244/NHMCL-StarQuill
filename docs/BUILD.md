@@ -21,7 +21,7 @@ npm run dist -- --config.directories.output=dist
 
 ## Linux
 
-`scripts/build-linux.sh` 依赖 `build/beta-1.0.4.asar`，并会校验其 SHA-256（`c1acd9a73092b01b1d1b065e637e86ca0bb91794ea6353332a18a69b4240d53c`）。该文件不在仓库中：
+`scripts/build-linux.sh` 依赖 `build/beta-1.0.4.asar`，并会校验其 SHA-256（`a43c04fb2930820033d18c0a0f954784d658645316dc47403fbfb2d228c34a2d`）。该文件不在仓库中：
 
 - 如果已有 Windows 构建产物，脚本会**自动**把 `dist/win-unpacked/resources/app.asar` 复制到 `build/beta-1.0.4.asar`；
 - 也可以手动从 Release 附件的 `win-unpacked/resources/app.asar` 复制；

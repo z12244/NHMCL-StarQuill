@@ -406,3 +406,7 @@ body.reference-ui select.version-picker option:is(:hover,:focus-visible) { backg
 #credits button {flex:none}
 #credits .credits-header {display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
 #credits .credits-header h3 {margin:0}
+#update-notice {position:fixed;top:90px;right:18px;z-index:20;background:var(--paper);color:var(--ink);border:1px solid var(--line);border-left:3px solid var(--cyan);box-shadow:0 4px 14px #101a1926;padding:12px;display:flex;align-items:center;gap:10px}
+#update-notice[hidden] {display:none}
+#release-dialog {width:min(520px,90vw);background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:20px}
+#release-notes {max-height:55vh;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;user-select:text;margin:12px 0}

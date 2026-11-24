@@ -15,7 +15,7 @@ if [[ ! -f $archive ]]; then
     echo "请先运行 Windows 构建（npm run dist:win）生成 dist/win-unpacked/resources/app.asar，或从 Release 附件复制为 $archive。详见 docs/BUILD.md" >&2
     exit 1
 fi
-echo "c1acd9a73092b01b1d1b065e637e86ca0bb91794ea6353332a18a69b4240d53c  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 beta-1.0.4 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
+echo "a43c04fb2930820033d18c0a0f954784d658645316dc47403fbfb2d228c34a2d  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 beta-1.0.4 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
 electron=build/electron.zip
 url=${ELECTRON_DOWNLOAD_URL:-https://github.com/electron/electron/releases/download/v45.2.2/electron-v45.2.2-linux-x64.zip}
 if [[ ! -f $electron ]]; then curl -fL --retry 3 "$url" -o "$electron.part"; mv "$electron.part" "$electron"; fi

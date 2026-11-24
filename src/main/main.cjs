@@ -286,6 +286,10 @@ ipcMain.handle('credits-list',()=>{
   const {displayVersion,version}=require('../../package.json');
   return creditEntries.map(entry=>entry.id==='nhmcl'?{...entry,desc:'当前版本：测试版 '+displayVersion+'（'+version+'）'}:entry);
 });
+ipcMain.handle('launcher-update-check',()=>require('../shared/launcher-updates.cjs').checkRelease(fetcher,require('../../package.json').version));
+ipcMain.handle('launcher-release-open',(_,tag)=>{
+  if(typeof tag==='string'&&/^[a-z0-9.-]{1,80}$/i.test(tag))return shell.openExternal('https://github.com/z12244/NHMCL-StarQuill/releases/tag/'+encodeURIComponent(tag));
+});
 ipcMain.handle('open-feedback',()=>shell.openExternal('https://github.com/z12244/NHMCL-StarQuill/issues/new/choose'));
 ipcMain.handle('credit-open',(_,id)=>{
   const entry=creditEntries.find(item=>item.id===id);

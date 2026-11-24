@@ -115,7 +115,9 @@
       else if(i>=runtime)panelMap.java.append(e);
       else panelMap.general.append(e);
     }
-    panelMap.general.append(themeLabel,themeTools,cssStatus);
+    const updateLabel=node('label','checkbox');
+    const toggle=node('input');toggle.type='checkbox';toggle.id='auto-update-check';toggle.checked=true;
+    updateLabel.append(toggle,' 自动检测更新');panelMap.general.prepend(node('h3','','启动器更新'),updateLabel);panelMap.general.append(themeLabel,themeTools,cssStatus);
     const scanner=panelMap.advanced.querySelector('#advanced-scanner');if(scanner)panelMap.java.append(scanner);
     const advanced=panelMap.advanced.querySelector('#global-advanced');advanced.open=true;advanced.querySelector('summary').hidden=true;
     summary.innerHTML='<h3>系统信息</h3><dl><dt>系统内存</dt><dd id="ref-system-memory">— GB</dd><dt>当前可用内存</dt><dd id="ref-system-available">尚未读取</dd><dt>Java 选择</dt><dd id="ref-system-java">自动匹配 Java</dd></dl>';
