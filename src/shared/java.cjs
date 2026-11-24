@@ -68,7 +68,8 @@ function javaRequirement(meta={}){
 function requiredJava(meta){return javaRequirement(meta).preferred;}
 function javaCompatible(major,required){const r=normalizeJavaRequirement(required);return Number.isInteger(major)&&major>=r.min&&major<=r.max&&(!r.majors||r.majors.includes(major));}
 function describeJava(required){const r=normalizeJavaRequirement(required);return r.majors&&r.majors.length>1?r.majors.join(' / '):r.min===r.max?String(r.min):`${r.min}–${r.max}`;}
-function chooseJava(items,required,memory){const requirement=normalizeJavaRequirement(required),compatible=items.filter(j=>javaCompatible(j.major,requirement)&&j.bits===64&&(/amd64|x86_64|x64/i.test(j.arch)||(process.platform==='darwin'&&process.arch==='arm64'&&/arm64|aarch64/i.test(j.arch))));
+function javaArchSupported(arch){const value=String(arch||'');if(/amd64|x86_64|x64/i.test(value))return true;return process.platform==='darwin'&&/arm64|aarch64/i.test(value);}
+function chooseJava(items,required,memory){const requirement=normalizeJavaRequirement(required),compatible=items.filter(j=>javaCompatible(j.major,requirement)&&j.bits===64&&javaArchSupported(j.arch));
   compatible.sort((a,b)=>Number(b.bundled)-Number(a.bundled)||Number(b.major===requirement.preferred)-Number(a.major===requirement.preferred)||b.major-a.major||b.version.localeCompare(a.version,undefined,{numeric:true}));
   if(!compatible.length)throw Error(`未找到适合此版本的 64 位 Java ${describeJava(requirement)}。请安装后重新扫描，或在 Java 设置中手动选择。`);return compatible[0];}
-module.exports={memoryLimit,parseJava,inspectJava,scanJava,requiredJava,javaRequirement,normalizeJavaRequirement,javaCompatible,describeJava,chooseJava};
+module.exports={memoryLimit,parseJava,inspectJava,scanJava,requiredJava,javaRequirement,normalizeJavaRequirement,javaCompatible,describeJava,chooseJava,javaArchSupported};

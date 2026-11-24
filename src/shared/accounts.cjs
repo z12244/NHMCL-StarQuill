@@ -4,9 +4,12 @@ const {failure,stageFor}=require('./auth-errors.cjs');
 const {offlineUUID}=require('./game.cjs');
 const OAUTH='https://login.microsoftonline.com/consumers/oauth2/v2.0/';
 const SCOPE='XboxLive.signin offline_access';
-// Public application identifier; no client secret is used.
-const PROJECT_CLIENT_ID='7bc3524f-730e-43df-99af-51dfb9b6325a';
-const resolveClientId=value=>validClient(value)?value:PROJECT_CLIENT_ID;
+// Reserved integration point. The project has no approved application ID, so no
+// identifier is built in: a user-supplied public application ID is still accepted,
+// and the placeholder ID shipped by older builds is refused.
+const RETIRED_CLIENT_ID='7bc3524f-730e-43df-99af-51dfb9b6325a';
+const PROJECT_CLIENT_ID='';
+const resolveClientId=value=>value===RETIRED_CLIENT_ID?'':validClient(value)?value:'';
 const validClient=id=>typeof id==='string'&&/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
 const abort=signal=>{if(signal?.aborted)throw Error('登录已取消');};
 function delay(ms,signal){return new Promise((resolve,reject)=>{abort(signal);const cancel=()=>{clearTimeout(timer);reject(Error('登录已取消'));};const timer=setTimeout(()=>{signal?.removeEventListener('abort',cancel);resolve();},ms);signal?.addEventListener('abort',cancel,{once:true});});}
@@ -98,4 +101,4 @@ class AccountStore{
   async select(id){if(!this.accounts.some(a=>a.id===id))throw Error('账号不存在');if(this.shared&&id.startsWith('authlib:'))this.shared.transaction(()=>{if(!this.shared.read(id))throw Error('皮肤站会话已清除，请重新登录');this.shared.put('selected-skin',id);});this.active=id;await this.save();return this.public();}
   async remove(id){if(this.accounts.length<=1)throw Error('请至少保留一个账号');if(this.shared&&id.startsWith('authlib:'))this.shared.transaction(()=>{this.shared.remove(id);if(this.shared.read('selected-skin')===id)this.shared.remove('selected-skin');});this.accounts=this.accounts.filter(a=>a.id!==id);if(this.active===id)this.active=this.accounts[0].id;await this.save();return this.public();}
 }
-module.exports={MicrosoftAuth,AccountStore,validClient,OAUTH,PROJECT_CLIENT_ID,resolveClientId};
+module.exports={MicrosoftAuth,AccountStore,validClient,OAUTH,PROJECT_CLIENT_ID,RETIRED_CLIENT_ID,resolveClientId};

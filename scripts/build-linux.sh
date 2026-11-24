@@ -4,7 +4,9 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 [[ $(dpkg --print-architecture) == amd64 ]]
 mkdir -p build dist
-archive=${NHMCL_BASE_ASAR:-build/beta-1.0.4.asar}
+release=stable-1.0.4
+display=v1.0.4
+archive=${NHMCL_BASE_ASAR:-build/$release.asar}
 if [[ ! -f $archive && -f dist/win-unpacked/resources/app.asar ]]; then
     mkdir -p "$(dirname "$archive")"
     cp dist/win-unpacked/resources/app.asar "$archive"
@@ -15,10 +17,22 @@ if [[ ! -f $archive ]]; then
     echo "请先运行 Windows 构建（npm run dist:win）生成 dist/win-unpacked/resources/app.asar，或从 Release 附件复制为 $archive。详见 docs/BUILD.md" >&2
     exit 1
 fi
-echo "a43c04fb2930820033d18c0a0f954784d658645316dc47403fbfb2d228c34a2d  $archive" | sha256sum --check --status || { echo "基线 SHA-256 不匹配：$archive（需要 beta-1.0.4 的 resources/app.asar，详见 docs/BUILD.md）" >&2; exit 1; }
+actual=$(sha256sum "$archive" | cut -d' ' -f1)
+if [[ -n ${NHMCL_BASE_ASAR_SHA256-} ]]; then
+    # Release builds pin the exact baseline; pass the hash printed by the Windows build.
+    [[ $actual == "$NHMCL_BASE_ASAR_SHA256" ]] || { echo "基线 SHA-256 不匹配：$archive（期望 $NHMCL_BASE_ASAR_SHA256，实际 $actual）" >&2; exit 1; }
+else
+    echo "基线 asar SHA-256：$actual（发布时可用 NHMCL_BASE_ASAR_SHA256=$actual 固定）"
+    grep -aq '"main": "src/main/main.cjs"' "$archive" || { echo "基线不是星翎启动器的 app.asar：$archive" >&2; exit 1; }
+    grep -aq '"displayVersion": "'"$display"'"' "$archive" || { echo "基线版本不是 $display：$archive" >&2; exit 1; }
+fi
 electron=build/electron.zip
-url=${ELECTRON_DOWNLOAD_URL:-https://github.com/electron/electron/releases/download/v45.2.2/electron-v45.2.2-linux-x64.zip}
-if [[ ! -f $electron ]]; then curl -fL --retry 3 "$url" -o "$electron.part"; mv "$electron.part" "$electron"; fi
+url=${ELECTRON_DOWNLOAD_URL:-https://npmmirror.com/mirrors/electron/45.2.2/electron-v45.2.2-linux-x64.zip}
+if [[ ! -f $electron ]]; then
+    curl -fL --retry 3 "$url" -o "$electron.part" || curl -fL --retry 3 \
+        "https://github.com/electron/electron/releases/download/v45.2.2/electron-v45.2.2-linux-x64.zip" -o "$electron.part"
+    mv "$electron.part" "$electron"
+fi
 echo "b5d3e7e5a80faeb194e741f85c667951490ba8052b655566d47dacb20f9868f9  $electron" | sha256sum --check --status
 stage=$(mktemp -d "$PWD/build/portable.XXXXXXXX")
 trap 'rm -rf -- "$stage"' EXIT
@@ -50,6 +64,6 @@ import json, pathlib, sys
 script = pathlib.Path("scripts/linux-portable.sh").read_text()
 pathlib.Path(sys.argv[1]).write_text("static const char startup[] = " + json.dumps(script,ensure_ascii=False) + ";\n")
 PY
-cc -Os -Wall -Wextra -Werror -s -I "$stage" -DPAYLOAD_SIZE="\"$size\"" -DPAYLOAD_SHA256="\"$digest\"" scripts/portable-linux.c -o "$stage/beta-1.0.4-linux"
-cat "$stage/payload.xz" >> "$stage/beta-1.0.4-linux"
-mv "$stage/beta-1.0.4-linux" dist/
+cc -Os -Wall -Wextra -Werror -s -I "$stage" -DPAYLOAD_SIZE="\"$size\"" -DPAYLOAD_SHA256="\"$digest\"" scripts/portable-linux.c -o "$stage/$release-linux"
+cat "$stage/payload.xz" >> "$stage/$release-linux"
+mv "$stage/$release-linux" dist/

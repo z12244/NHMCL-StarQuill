@@ -1,4 +1,4 @@
-const fs=require('node:fs/promises'),path=require('node:path');
+const fs=require('node:fs/promises'),path=require('node:path'),crypto=require('node:crypto');
 const {constants}=require('node:fs');
 function versionName(id){if(typeof id!=='string'||!id.trim()||id.length>180||/[<>:"/\\|?*\x00-\x1f]/.test(id)||/[. ]$/.test(id)||['.','..'].includes(id)||/^(con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(id))throw Error('版本文件夹名称无效');return id;}
 function under(root,relative){if(typeof relative!=='string'||!relative||/^[a-z]:/i.test(relative)||relative.includes('\\')||relative.startsWith('/'))throw Error('文件路径无效');const target=path.resolve(root,relative);const rel=path.relative(path.resolve(root),target);if(rel==='..'||rel.startsWith('..'+path.sep)||path.isAbsolute(rel))throw Error('文件路径越出游戏目录');return target;}
@@ -10,7 +10,13 @@ function layout(root,id,isolate=true,sharedRoot=root){
     libraries:path.resolve(sharedRoot,'libraries'),assets:path.resolve(sharedRoot,'assets'),natives:path.join(version,'natives')};
 }
 async function readJSON(file){return JSON.parse(await fs.readFile(file,'utf8'));}
-async function writeJSON(file,value){await fs.mkdir(path.dirname(file),{recursive:true});const temp=file+'.starquill.tmp';await fs.writeFile(temp,JSON.stringify(value,null,2));await fs.rename(temp,file);}
+async function writeJSON(file,value){await fs.mkdir(path.dirname(file),{recursive:true});const temp=file+'.'+crypto.randomUUID()+'.tmp';const handle=await fs.open(temp,'w');try{await handle.writeFile(JSON.stringify(value,null,2));await handle.sync();}finally{await handle.close();}
+  // Windows refuses concurrent replaces of the same target with EPERM/EBUSY.
+  for(let attempt=0;;attempt++){
+    try{await fs.rename(temp,file);return;}
+    catch(e){if(!['EPERM','EACCES','EBUSY'].includes(e.code)||attempt>=6){await fs.rm(temp,{force:true});throw e;}await new Promise(resolve=>setTimeout(resolve,20*(attempt+1)));}
+  }
+}
 async function markStandalone(root,id) {
   const marker=path.join(layout(root,id).version,'.starquill-standalone');
   try { await fs.writeFile(marker,'',{flag:'wx'}); }

@@ -1,5 +1,8 @@
 node_modules/
 dist/
+/dist-dev/
+/dist-dsh/
+/dist-build/
 .minecraft/
 .starquill-profile/
 /win-unpacked/

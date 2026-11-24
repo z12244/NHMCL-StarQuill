@@ -33,6 +33,15 @@ async function main() {
       config.extraMetadata = {...config.extraMetadata, starQuillProjectCredential:envelope};
       config.files = [...config.files, {from:temp,to:'internal',filter:['project.bin']}];
     }
+    // A private test build can carry its own label without touching package.json.
+    const suffix=(process.env.NHMCL_BUILD_SUFFIX||'').trim();
+    if(suffix){
+      if(!/^[a-z0-9-]+$/i.test(suffix))throw new Error('NHMCL_BUILD_SUFFIX 只能包含字母、数字和连字符');
+      const release=project.releaseName||project.displayVersion||project.version;
+      config.artifactName=config.artifactName.replace(release,()=>release+'-'+suffix);
+      config.extraMetadata={...config.extraMetadata,displayVersion:(project.displayVersion||project.version)+'-'+suffix};
+      console.log('测试构建标记：-'+suffix+'（不随正式版发布）');
+    }
     await fs.writeFile(configFile,JSON.stringify(config),{mode:0o600});
     // Use electron-builder's normal dependency traversal and ASAR integrity
     // metadata, followed by the launcher's persistent portable engine wrapper.
@@ -49,11 +58,21 @@ async function main() {
     if (result.status !== 0) throw new Error('Electron packaging failed: '+result.status);
     const override = args.find(a=>/^--?c(?:onfig)?\.directories\.output=/.test(a));
     const output = path.resolve(__dirname,'..',override ? override.slice(override.indexOf('=')+1) : config.directories.output);
+    // Running win-unpacked/ during a smoke test leaves a profile and a game
+    // directory in the output folder; they must never ship with the artifacts.
+    for (const name of ['.starquill-profile','.minecraft']) await fs.rm(path.join(output,name),{recursive:true,force:true});
     await require('./pack-portable.cjs').packPortable({
       directory:path.join(output,'win-unpacked'),
       artifact:path.join(output,config.artifactName.replace('${ext}','exe')),
       bundle,temp,project
     });
+    // Release notes need the hash of exactly what was produced.
+    const artifact=path.join(output,config.artifactName.replace('${ext}','exe'));
+    const {createHash}=require('node:crypto');
+    const hash=createHash('sha256');
+    for await (const chunk of require('node:fs').createReadStream(artifact))hash.update(chunk);
+    const {size}=await fs.stat(artifact);
+    console.log(`${path.basename(artifact)}  ${size} B  sha256=${hash.digest('hex')}`);
   } finally {
     await fs.rm(path.join(temp,'files.nsh'),{force:true});
     await fs.rm(input,{force:true});

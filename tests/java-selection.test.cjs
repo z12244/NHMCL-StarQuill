@@ -5,6 +5,14 @@ const runtime=(major,name='',extra={})=>({major,version:String(major)+'.0.1',bit
 const settings={javaMode:'auto',java:'',javaMajor:21,memory:2},requirement={min:17,max:26,preferred:21,majors:[17,21,25,26]};
 async function root(t){const folder=await fs.mkdtemp(path.join(os.tmpdir(),'starquill-java-selection-'));t.after(()=>fs.rm(folder,{recursive:true,force:true}));return folder;}
 
+test('Java architecture gate accepts every x64 spelling and only allows arm64 on Apple Silicon',()=>{
+  const {javaArchSupported}=require('../src/shared/java.cjs');
+  for(const arch of ['amd64','x86_64','x64','AMD64'])assert.equal(javaArchSupported(arch),true);
+  const darwin=process.platform==='darwin';
+  for(const arch of ['arm64','aarch64'])assert.equal(javaArchSupported(arch),darwin);
+  for(const arch of ['x86','ia32','',undefined])assert.equal(javaArchSupported(arch),false);
+});
+
 test('automatic strategy keeps matching the game requirement instead of forcing the remembered Java path',async()=>{
  const items=[runtime(8),runtime(17),runtime(21,'bundled',{bundled:true}),runtime(25)];
  assert.equal((await resolveJavaSelection({settings:{...settings,java:items[0].path},required:requirement,items})).major,21);

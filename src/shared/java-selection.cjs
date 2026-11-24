@@ -1,6 +1,6 @@
 const path=require('node:path');
 const {layout}=require('./storage.cjs');
-const {inspectJava,scanJava,chooseJava,normalizeJavaRequirement,javaCompatible,describeJava}=require('./java.cjs');
+const {inspectJava,scanJava,chooseJava,normalizeJavaRequirement,javaCompatible,describeJava,javaArchSupported}=require('./java.cjs');
 
 const JAVA_MODES=['auto','major','folder','manual'];
 function validMajor(value){return Number.isInteger(value)&&value>=8&&value<=99;}
@@ -31,7 +31,7 @@ async function resolveJavaSelection({root,id,settings,required,items=[],inspect=
   }else java=chooseJava(runtimes,requirement,settings.memory);
  }
  if(!javaCompatible(java.major,requirement))throw Error(`此版本需要 Java ${describeJava(requirement)}，当前选择为 Java ${java.major}；请更换 Java 选择策略`);
- if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch||''))throw Error('此启动器需要 x64 Java，请选择 64 位 Java');
+ if(java.bits!==64||!javaArchSupported(java.arch))throw Error('此启动器需要 64 位 Java（x64；Apple Silicon 上可用 arm64），请重新选择');
  return java;
 }
 module.exports={JAVA_MODES,validMajor,validateJavaSelection,resolveJavaSelection};

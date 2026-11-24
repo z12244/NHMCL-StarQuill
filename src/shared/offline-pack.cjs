@@ -1,7 +1,7 @@
 const fs=require('node:fs/promises'),native=require('node:fs'),path=require('node:path'),crypto=require('node:crypto');
 const {Transform,PassThrough}=require('node:stream'),{pipeline}=require('node:stream/promises');const yazl=require('yazl'),yauzl=require('yauzl');
 const {layout,under,versionName,readJSON,writeJSON,resolveVersion}=require('./storage.cjs');
-const {libraryFiles}=require('./game.cjs'),{javaRequirement,javaCompatible}=require('./java.cjs'),{hashFile,expectedHash}=require('./downloads.cjs');
+const {libraryFiles}=require('./game.cjs'),{javaRequirement,javaCompatible,javaArchSupported}=require('./java.cjs'),{hashFile,expectedHash}=require('./downloads.cjs');
 const {relativeFile,noLinks,exists}=require('./content-utils.cjs'),{instanceOptions,readInstanceConfig}=require('./instance-config.cjs');
 const {javaBinary,pathKey}=require('./platform.cjs');
 const FORMAT='NHMCL-StarQuill-offline',MAX_FILES=100000,MAX_TOTAL=64*1024**3,MAX_FILE=8*1024**3;
@@ -67,7 +67,7 @@ class OfflinePacks{
  progress(text,percent){if(Date.now()-this.lastProgress>120||percent===100){this.lastProgress=Date.now();this.onStatus(text,percent);}}
  async export(id,destination,signal){
   const required=await requiredFiles(this.root,id),options=await instanceOptions(this.root,id,this.settings,required.raw),config=await readInstanceConfig(this.root,id),requirement=javaRequirement(required.meta),runtime=await this.chooseJava(id,requirement,options);
-  if(!javaCompatible(runtime.major,requirement)||runtime.bits!==64||!/amd64|x86_64|x64/i.test(runtime.arch||''))throw Error('请先选择与游戏匹配的 x64 Java，再导出离线包');
+  if(!javaCompatible(runtime.major,requirement)||runtime.bits!==64||!javaArchSupported(runtime.arch))throw Error('请先选择与游戏匹配的 64 位 Java，再导出离线包');
   const javaHome=path.resolve(runtime.home||path.dirname(path.dirname(runtime.path)));if(!await exists(path.join(javaHome,'bin',javaBinary)))throw Error('Java 目录不完整，不能导出运行环境');
   const game=layout(this.root,id,options.isolate).game,items=new Map(),expect=new Map(required.files.map(f=>[pathKey(f.file),f]));let bytes=0;
   const add=async(file,name)=>{cleanPath(name);const key=name.toLowerCase();if(items.has(key)){if(path.resolve(items.get(key).file)!==path.resolve(file))throw Error('版本包存在同名路径');return;}const stat=await fs.stat(file);if(stat.size>MAX_FILE||(bytes+=stat.size)>MAX_TOTAL||items.size>=MAX_FILES)throw Error('离线包超出 64 GB / 100000 文件的上限');items.set(key,{file,path:name,size:stat.size,mtime:stat.mtimeMs,mode:stat.mode & 0o111 ? 0o100755 : 0o100644,expected:expect.get(pathKey(file))});};

@@ -17,3 +17,11 @@ test('offline preparation reuses standard indexes and libraries with zero reques
 });
 test('migration preserves original saves, skips collisions and conflicts',async t=>{const dir=await temp(t),source=path.join(dir,'old'),target=path.join(dir,'.minecraft');const old=path.join(source,'1.21.1');await writeJSON(path.join(old,'versions/1.21.1/1.21.1.json'),{id:'1.21.1'});await fs.mkdir(path.join(old,'saves/World'),{recursive:true});await fs.writeFile(path.join(old,'saves/World/level.dat'),'save');const first=await migrateLegacy(source,target);assert.equal(first.versions,1);assert.equal(await fs.readFile(path.join(target,'versions/1.21.1/saves/World/level.dat'),'utf8'),'save');assert.equal(await fs.readFile(path.join(old,'saves/World/level.dat'),'utf8'),'save');await fs.writeFile(path.join(target,'versions/1.21.1/saves/World/level.dat'),'newer');await migrateLegacy(source,target);assert.equal(await fs.readFile(path.join(target,'versions/1.21.1/saves/World/level.dat'),'utf8'),'newer');await writeJSON(layout(target,'1.21.1').json,{id:'different'});assert.deepEqual((await migrateLegacy(source,target)).conflicts,['1.21.1']);});
 test('ordered rules respect OS and optional features',()=>{assert.equal(allowed([{action:'allow'},{action:'disallow',os:{name:'osx'}}],{os:'windows'}),true);assert.equal(allowed([{action:'allow',features:{is_demo_user:true}}]),false);assert.deepEqual(expand(['a',{rules:[{action:'allow',features:{is_demo_user:true}}],value:'--demo'}],{}),['a']);assert.equal(offlineUUID('Notch'),'b50ad385829d3141a2167e7d7539ba7f');});
+
+test('concurrent JSON writes stay atomic and leave no temporary files behind',async t=>{
+  const dir=await temp(t),file=path.join(dir,'settings.json');
+  await Promise.all(Array.from({length:20},(_,i)=>writeJSON(file,{i,payload:'x'.repeat(1024)})));
+  const data=JSON.parse(await fs.readFile(file,'utf8'));
+  assert.equal(typeof data.i,'number');
+  assert.deepEqual(await fs.readdir(dir),['settings.json']);
+});

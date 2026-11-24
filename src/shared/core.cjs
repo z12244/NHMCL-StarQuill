@@ -5,7 +5,9 @@ function runtimePath(resources,devRoot,packaged){return path.join(packaged?resou
 function redact(text){return String(text)
   .replace(/(--accessToken(?:=|\s+))(?:"[^"]*"|'[^']*'|\S+)/gi,'$1[redacted]')
   .replace(/(Bearer\s+)[^\s"']+/gi,'$1[redacted]')
-  .replace(/(["']?(?:access_?token|refresh_?token|client_?token|device_code|identityToken|password)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,}]+)/gi,'$1"[redacted]"')
+  .replace(/(Authorization\s*:\s*Basic\s+)[^\s"']+/gi,'$1[redacted]')
+  .replace(/([?&](?:access_token|refresh_token|client_token|device_code|session|token)=)[^&#\s"']+/gi,'$1[redacted]')
+  .replace(/(["']?(?:access_?token|refresh_?token|client_?token|device_code|identityToken|password)["']?\s*[:=]\s*)(?!"?\[redacted\])(?:"[^"]*"|'[^']*'|[^\s,}]+)/gi,'$1"[redacted]"')
   .replace(/(XBL3\.0\s+x=)[^\s"']+/gi,'$1[redacted]')
   .replace(/token:[^:\s"']+:[a-f\d-]{32,36}/gi,'token:[redacted]:[redacted]');}
 module.exports={validate,javaMajor,runtimePath,redact};

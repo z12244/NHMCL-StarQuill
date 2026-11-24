@@ -20,7 +20,7 @@ const publicSettings=()=>{const {localVersionArgs,importedIsolation,...visible}=
 const {layout,scan,markStandalone,writeJSON,migrateLegacy}=require('../shared/storage.cjs');
 const {validate,runtimePath,redact}=require('../shared/core.cjs');
 const {scanJava,chooseJava,requiredJava,javaRequirement,javaCompatible,describeJava,memoryLimit}=require('../shared/java.cjs');
-const {AccountStore,MicrosoftAuth,validClient,PROJECT_CLIENT_ID,resolveClientId}=require('../shared/accounts.cjs');
+const {AccountStore,MicrosoftAuth,validClient,PROJECT_CLIENT_ID,RETIRED_CLIENT_ID,resolveClientId}=require('../shared/accounts.cjs');
 const {importSkin,previewSkin,startSkinServer}=require('../shared/skins.cjs');
 const {YggdrasilAuth,PRESETS}=require('../shared/yggdrasil.cjs');
 const {ManifestCatalog}=require('../shared/catalog.cjs');
@@ -141,10 +141,16 @@ function selectInstallerJava(required){
 }
 market=registerMarket({ipcMain,dialog,shell,fetcher,log,window:()=>win,settings:()=>settings,idle:requireIdle,getManifest:()=>catalog.refresh(false),progress:(text,percent=0)=>status('downloading',text,percent),chooseJava:selectInstallerJava,changed:async id=>{if(id){settings.selected=id;await persist();}send('instances-changed',await local());send('market-changed',{selected:id});},job:runJob});
 require('node:fs').mkdirSync(home(),{recursive:true});app.setPath('userData',home());
+// Two copies would overwrite settings.json, accounts.json and the window state.
+if(!app.requestSingleInstanceLock()){app.quit();return;}
+app.on('second-instance',()=>{if(!win||win.isDestroyed())return;if(win.isMinimized())win.restore();win.show();win.focus();});
 app.whenReady().then(async()=>{
   await fs.mkdir(home(),{recursive:true});let newProfile=true;settings=defaults();try{const saved=JSON.parse(await fs.readFile(path.join(home(),'settings.json'),'utf8'));settings={...settings,...saved,javaMode:saved.javaMode||(saved.java?'manual':'auto')};newProfile=false;}catch{}
   try { settings.windows=windowSettings(settings.windows); } catch { settings.windows=windowSettings(); }
-  settings.microsoftClientId=resolveClientId(settings.microsoftClientId);
+  // Microsoft sign-in stays unconnected: drop any identifier retired from older builds.
+  const savedClientId=settings.microsoftClientId;
+  settings.microsoftClientId=resolveClientId(savedClientId);
+  if(savedClientId!==settings.microsoftClientId)await persist().catch(()=>{});
   settings.javaMajor=validMajor(settings.javaMajor)?settings.javaMajor:21;
   settings.memory=Math.min(memoryLimit(),Math.max(1,Math.floor(Number(settings.memory)||4)));
   const adjacentRoot=path.join(portable(),'.minecraft');
@@ -196,7 +202,7 @@ app.whenReady().then(async()=>{
   win.on('close',()=>{if(win.isMinimized())return;const bounds=win.getBounds();try{require('node:fs').writeFileSync(positionFile,JSON.stringify({x:bounds.x,y:bounds.y,displayId:screen.getDisplayMatching(bounds).id}));}catch{}});
   win.on('resize',fitContent);
   win.webContents.on('dom-ready',fitContent);
-  gameVisibility=require('../shared/game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools',process.platform==='linux'?'game-window-ready.sh':'game-window-ready.exe'));
+  gameVisibility=require('../shared/game-window-visibility.cjs').gameWindowVisibility(win,()=>require('electron').nativeTheme.prefersReducedMotion,path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools',process.platform==='win32'?'game-window-ready.exe':process.platform==='linux'?'game-window-ready.sh':null));
   win.once('closed',()=>gameVisibility.stop());
   win.removeMenu();
   win.on('app-command',(event,command)=>{if(command==='browser-backward'){event.preventDefault();send('navigate-back');}});
@@ -205,7 +211,7 @@ app.whenReady().then(async()=>{
   win.webContents.on('zoom-changed',fitContent);
   win.webContents.on('before-input-event',(event,input)=>{if(input.key==='F11'||((input.control||input.meta)&&['+','-','=','0','Add','Subtract'].includes(input.key)))event.preventDefault();});
   win.webContents.setWindowOpenHandler(()=>({action:'deny'}));win.webContents.on('will-navigate',e=>e.preventDefault());
-  win.on('close',e=>{if(busy&&!closing){e.preventDefault();dialog.showMessageBox(win,{type:'question',message:'当前任务尚未结束，是否关闭？',detail:'下载将保留已完成文件与续传数据；运行中的游戏将结束。',buttons:['继续运行','关闭并结束任务'],defaultId:0,cancelId:0}).then(({response})=>{if(response===1){closing=true;controller?.abort();child?.kill();app.exit(0);}});}});
+  win.on('close',e=>{if(busy&&!closing){e.preventDefault();dialog.showMessageBox(win,{type:'question',message:'当前任务尚未结束，是否关闭？',detail:'下载将保留已完成文件与续传数据；运行中的游戏将结束。',buttons:['继续运行','关闭并结束任务'],defaultId:0,cancelId:0}).then(({response})=>{if(response===1){closing=true;controller?.abort();child?.kill();app.quit();}});}});
   let observedDataVersion=loginDatabase?.version();
   win.on('focus',()=>{
     if(settings&&!busy)local().then(items=>send('instances-changed',items)).catch(()=>{});
@@ -283,8 +289,9 @@ ipcMain.handle('account-select',async(_,id)=>{requireIdle();await accounts.selec
 ipcMain.handle('account-remove',async(_,id)=>{requireIdle();if(accounts.accounts.length<=1)throw Error('请至少保留一个账号');const account=accounts.accounts.find(a=>a.id===id);externalBusy=true;try{if(account?.type==='authlib')await externalAuth.invalidate(account).catch(()=>log('皮肤站暂不可用：已移除本地登录，远端会话撤销未确认'));await accounts.remove(id);return changedAccounts();}finally{externalBusy=false;}});
 const creditEntries=require('../assets/credits/entries.json');
 ipcMain.handle('credits-list',()=>{
-  const {displayVersion,version}=require('../../package.json');
-  return creditEntries.map(entry=>entry.id==='nhmcl'?{...entry,desc:'当前版本：测试版 '+displayVersion+'（'+version+'）'}:entry);
+  const {displayVersion,releaseName}=require('../../package.json');
+  // The About card uses the full release name (stable-1.0.4); the sidebar keeps the short one (v1.0.4).
+  return creditEntries.map(entry=>entry.id==='nhmcl'?{...entry,desc:'当前版本：'+(releaseName||displayVersion)}:entry);
 });
 ipcMain.handle('launcher-update-check',()=>require('../shared/launcher-updates.cjs').checkRelease(fetcher,require('../../package.json').version));
 ipcMain.handle('launcher-release-open',(_,tag)=>{

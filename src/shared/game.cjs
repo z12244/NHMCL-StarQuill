@@ -7,7 +7,7 @@ const advanced=require('./advanced.cjs');
 const {runPreLaunch,highPerformanceGpu,linuxGameEnv}=require('./launch-system.cjs');
 const {Downloads,MANIFEST,pool}=require('./downloads.cjs');
 const {layout,under,readJSON,writeJSON,resolveVersion,libraryKey}=require('./storage.cjs');
-const {inspectJava,requiredJava,javaRequirement,javaCompatible,describeJava}=require('./java.cjs');
+const {inspectJava,requiredJava,javaRequirement,javaCompatible,describeJava,javaArchSupported}=require('./java.cjs');
 const exec=promisify(execFile);
 function allowed(rules,context={}){
   if(!rules)return true;let allow=false;const name=context.os||({win32:'windows',darwin:'osx',linux:'linux'}[process.platform]);
@@ -181,7 +181,7 @@ class Game {
     return {args,cwd:p.game,jar,assetIndex,paths:p,stats:{...this.downloads.stats},javaVersion:major};
   }
   async launch(){const resolved=await this.resolve(),java=await inspectJava(this.options.java);const required=javaRequirement(resolved.meta);if(!javaCompatible(java.major,required))throw Error(`此版本需要 Java ${describeJava(required)}，当前为 Java ${java.major}。请在设置中选择对应 Java 或启用自动选择。`);
-    if(java.bits!==64||!/amd64|x86_64|x64/i.test(java.arch))throw Error('此启动器需要 x64 架构的 Java，请选择 64 位 Java。');
+    if(java.bits!==64||!javaArchSupported(java.arch))throw Error('此启动器需要 64 位 Java（x64；Apple Silicon 上可用 arm64），请重新选择 Java。');
     this.options.javaMajor=java.major;this.options.javaVersion=java.version;
     const prepared=await this.prepare({forLaunch:true}), o=this.options, options=advanced.effective(o.advanced);
     this.downloads.checkAbort();

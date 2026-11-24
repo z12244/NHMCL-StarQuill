@@ -65,7 +65,10 @@ function registerInstances(ctx){const {ipcMain,dialog,shell}=ctx;const manager=(
       message:'将「'+id+'」移入回收站？',detail:folder+'\n此文件夹内的存档、模组和配置也将一同移入回收站。共享资源和其他版本会保留。',
       buttons:['取消','移入回收站'],defaultId:0,cancelId:0,noLink:true});
     if(answer.response!==1)return false;
-    await shell.trashItem(await m.deleteTarget(id));
+    // Re-resolve after the dialog so a changed isolation mode cannot move the target.
+    const target=await m.deleteTarget(id);
+    if(target!==folder)throw Error('版本目录在确认期间发生变化，请重新操作');
+    await shell.trashItem(target);
     if(settings.selected===id)settings.selected='';
     if(settings.localVersionArgs)delete settings.localVersionArgs[versionKey(m.root,id)];
     try {await ctx.persist();}finally{await ctx.changed();}

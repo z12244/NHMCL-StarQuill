@@ -4,7 +4,7 @@
 
 由 StarQuill_z12244 发起的 Minecraft 启动器项目，经由南湖模作社参与维护与发行。面向 Windows 10 / Windows 11 x64。
 
-当前正式版为 **stable-1.0.3（v1.0.3）**，最新测试版为 **beta-1.0.4**。
+当前正式版为 **stable-1.0.4（v1.0.4）**。
 
 [下载最新版](https://github.com/z12244/NHMCL-StarQuill/releases/latest) · [全部版本](https://github.com/z12244/NHMCL-StarQuill/releases) · [正式版测试范围](docs/STABLE-1.0.0-TESTS.json)
 
@@ -16,13 +16,12 @@
 
 | 平台 | 文件 | 说明 |
 | --- | --- | --- |
-| Windows | `NHMCL-StarQuill-stable-1.0.3-win-x64.exe` | 便携 EXE，双击运行 |
-| Linux | `NHMCL-StarQuill-stable-1.0.3-linux-x64` | 单文件 ELF，`chmod +x` 后运行 |
-| macOS | `NHMCL-StarQuill-beta-1.0.3-mac-untested.zip` | 通用二进制（x64 + arm64），基于 beta-1.0.3 交叉打包，**未在 macOS 环境实测**；首次打开请按包内 `macOS-README.txt` 完成 ad-hoc 签名 |
+| Windows | `NHMCL-StarQuill-stable-1.0.4-win-x64.exe` | 便携 EXE，双击运行 |
+| Linux | `stable-1.0.4-linux` | 单文件 ELF，`chmod +x` 后运行 |
+| macOS（Intel） | `NHMCL-StarQuill-stable-1.0.4-mac-x64-untested.zip` | x64 包，交叉打包，**未在 macOS 环境实测**；首次打开请按包内 `README-使用说明.txt` 完成 ad-hoc 签名 |
+| macOS（Apple Silicon） | `NHMCL-StarQuill-stable-1.0.4-mac-arm64-untested.zip` | arm64 包，同上；不内置 Java，需自行选择对应架构 JDK |
 
-> 各文件 SHA-256 见 Release 附件中的 `SHA256SUMS*.txt`。
-
-> 最新测试版 **beta-1.0.4**：[预发布下载](https://github.com/z12244/NHMCL-StarQuill/releases/tag/beta-1.0.4)，包含旧版资源准备修复、准备性能优化、整合包解压优化与官方浅色 / 深色主题。
+> 各文件 SHA-256 见 Release 附件中的 `SHA256SUMS*.txt`，构建与测试记录见 `verification.json`。
 
 ## 使用
 
@@ -46,9 +45,9 @@
 
 ## 验证与当前限制
 
-218 项自动化回归通过。已验证原版 1.21.1 实际启动、三种加载器在线安装、CurseForge 下载、含 Java 的完整离线包往返、Java 策略、设置保存与内存优化。正式 EXE 已验证首次打开及重启，并补做首屏显示检查。
+214 项自动化回归通过（212 通过 / 2 跳过）。已验证原版 1.21.1 实际启动、三种加载器在线安装、CurseForge 下载、含 Java 的完整离线包往返、Java 策略、设置保存与内存优化。正式 EXE 已验证首次打开及重启，并补做首屏显示检查。
 
-皮肤站登录使用受控协议服务验证，真实站点账号授权仍需实际账号检验。v1.0.3 暂无法使用微软账号登录，界面已提示使用皮肤站登录，并移除微软登录按钮。源码保留接入通道。GTNH/Cleanroom 已验证安装与 JVM 引导链，完整模组加载与进入世界尚未全面覆盖。Windows 11 x64 与 Windows 10 专业版 x64 均已实机复测。
+皮肤站登录使用受控协议服务验证，真实站点账号授权仍需实际账号检验。v1.0.4 暂无法使用微软账号登录，界面已提示使用皮肤站登录，并移除微软登录按钮。源码保留接入通道。GTNH/Cleanroom 已验证安装与 JVM 引导链，完整模组加载与进入世界尚未全面覆盖。Windows 11 x64 与 Windows 10 专业版 x64 均已实机复测。
 
 ## 开发与构建
 

@@ -41,6 +41,8 @@ function gameWindowVisibility(window, reducedMotion, helperPath) {
     ownsVisibility = false;
     if (!enabled || !window.isVisible() || window.isMinimized()) return;
     awaitingWindow=true;
+    // macOS has no helper; the renderer-stage log evidence below covers it.
+    if (!helperPath) return;
     const p=spawn(helperPath,[String(pid),String(process.pid)],{windowsHide:true,stdio:'ignore'});
     watcher=p;
     p.once('error',()=>{if(watcher===p)watcher=undefined;});
