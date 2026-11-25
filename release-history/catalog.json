@@ -173,5 +173,33 @@
     "sha256": "e82f2dba51d788df5f0827cfbe6a1f6e01e74f3d2dd869a082dfefc03bcb8004",
     "kind": "historical-original",
     "originalVersion": "0.8.5"
+  },
+  {
+    "version": "beta-0.8.6",
+    "asset": "NHMCL-StarQuill-beta-0.8.6-win-x64.exe",
+    "sha256": "20ea4472d31a1d07047ef5f22a8d4e0b4aa8ece92b2c4e8dd326ca9ec310d42b",
+    "kind": "historical-original",
+    "originalVersion": "0.8.6"
+  },
+  {
+    "version": "beta-0.8.6",
+    "asset": "NHMCL-StarQuill-beta-0.8.6-source.zip",
+    "sha256": "f387c8b16d0801603c3950a738b74048d89cbd25c384696a2b7a0cb6e4eefd4b",
+    "kind": "historical-original",
+    "originalVersion": "0.8.6"
+  },
+  {
+    "version": "beta-0.8.7",
+    "asset": "NHMCL-StarQuill-beta-0.8.7-win-x64.exe",
+    "sha256": "df6bba18a97d2df2812584f4f3491503254997227740da736718ed5da6654efb",
+    "kind": "historical-original",
+    "originalVersion": "0.8.7"
+  },
+  {
+    "version": "beta-0.8.7",
+    "asset": "NHMCL-StarQuill-beta-0.8.7-source.zip",
+    "sha256": "a13fa388bbee0a84c5d31504299dc51fb15cb01a4dbcc6312d27d8450151c67d",
+    "kind": "historical-original",
+    "originalVersion": "0.8.7"
   }
 ]
