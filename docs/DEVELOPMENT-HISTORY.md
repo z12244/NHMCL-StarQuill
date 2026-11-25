@@ -168,3 +168,9 @@ npm run dist
 - **v1.0.4（stable-1.0.4）**：新增启动器更新检查（可关闭）与发布说明弹窗；官方浅色 / 深色 / 跟随系统外观与本地 CSS 主题（≤1 MiB）；致谢页面；资源工坊版本下拉 + 手动输入；macOS 运行时路径、Java 扫描与 arm64 适配；窗口位置记忆与自适应缩放。修复旧版仅含 assets 字段的版本清单资源准备、资源对象按目录批量校验、整合包解压单次遍历与失败回滚。
 
 自 1.0.4 起，微软登录处于「源码预留、发行版不接入」状态：项目未取得 Minecraft API 应用授权，构建不内置任何 Client ID，界面只提供离线与皮肤站登录。详见 MICROSOFT-LOGIN.md。
+### 2026-11-25 · minecraft2shell 临时防护
+
+- 社区公开 minecraft2shell：恶意服务器资源包字体经内置 FreeType（≤2.14.3）执行代码，1.20.5–1.21.10、26.1–26.4 受影响，1.20.4 及更早不调用 FreeType。
+- 随包附带 minecraft2shell-fix 的 `m2sfix-agent-1.0.0.jar`（MIT，未修改），Windows 上对受影响版本自动注入 `-javaagent`，关闭字体 hinting；设置里可关闭，已装 m2sfix 模组时跳过。
+- 代价是小字号文字略微发虚；这是临时缓解，不是官方修复。
+- **移除条件**：Mojang 发布内置 FreeType ≥ 2.15.0 的版本后，按 [FONT-SAFETY.md](FONT-SAFETY.md) 的清单删除补丁（代码中已有 `TODO(minecraft2shell)` 标记）。

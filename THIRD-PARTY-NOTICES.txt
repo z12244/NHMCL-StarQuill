@@ -2566,3 +2566,33 @@ Full license: tools/LWJGL-UNSAFE-AGENT-LICENSE.txt.
 Addon search metadata (mod.csv and modpack.csv): HMCL Authors and mcmod.cn.
 Upstream: https://github.com/HMCL-dev/HMCL/tree/d723c456830cf5a31d56c192bafbf40490a93902/HMCL/src/main/resources/assets/addon
 Original notices are preserved in both files.
+
+================================================================================
+minecraft2shell-fix · m2sfix-agent 1.0.0
+https://github.com/sunrisemc-tw/minecraft2shell-fix
+Release v2.1.0 · m2sfix-agent-1.0.0.jar · SHA-256 7b4552e9677df3bafed55e8589afbdf0cccd2a6178b8fbf2e08eb1ca4b2afc4e
+Bundled unmodified as tools/m2sfix-agent-1.0.0.jar for the optional Windows
+font-safety mitigation; see docs/FONT-SAFETY.md.
+
+MIT License
+
+Copyright (c) 2026 duckducktw
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+================================================================================

@@ -56,7 +56,7 @@ const systemLoginDir=process.platform==='darwin' ? macData : process.platform===
 const keyHelper=()=>path.join(app.isPackaged?process.resourcesPath:path.join(__dirname,'..','..'),'tools','user-storage-key.exe');
 let loginDatabase;
 function sharedLogins(){return loginDatabase??=new SharedLogins(systemLoginDir,process.platform!=='win32' ? safeStorage : windowsUserStorage(systemLoginDir,keyHelper()));}
-const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
+const defaults=()=>({hideOnGameStart:true,windows:windowSettings(),advanced:advanced.effective(),name:'Player',memory:Math.min(4,Math.max(1,Math.floor(os.totalmem()/1024**3/2))),optimizeMemory:false,fontSafety:true,java:'',javaMode:'auto',javaMajor:21,javaRoots:[],microsoftClientId:PROJECT_CLIENT_ID,selected:'1.21.1',snapshots:false,root:path.join(portable(),'.minecraft'),isolate:true,source:'auto',concurrency:16});
 const bundled=()=>runtimePath(process.resourcesPath,path.join(__dirname,'..','..'),app.isPackaged);
 function send(event,data){if(win&&!win.isDestroyed())win.webContents.send(event,data);}
 function status(phase,text,percent=0){state={phase,text,percent:Number.isFinite(percent)?Math.min(100,Math.max(0,percent)):0};send('state',state);}
@@ -253,7 +253,7 @@ ipcMain.handle('settings',async(_,o)=>{requireIdle();validate({version:o.selecte
   const rootChanged=!samePath(o.root,settings.root);
   const importedIsolation=samePath(pendingIsolation?.root,o.root)?pendingIsolation:rootChanged?await detectIsolation(o.root):settings.importedIsolation;
   settings.customRoot=path.relative(path.join(portable(),'.minecraft'),path.resolve(o.root))?path.resolve(o.root):null;
-  settings={...settings,hideOnGameStart:o.hideOnGameStart===undefined?settings.hideOnGameStart:o.hideOnGameStart===true,windows,importedIsolation,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:o.optimizeMemory===undefined?settings.optimizeMemory:o.optimizeMemory===true,memoryOptimizationVersion:1,java:o.java,javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,microsoftClientId:resolveClientId(o.microsoftClientId),selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();
+  settings={...settings,hideOnGameStart:o.hideOnGameStart===undefined?settings.hideOnGameStart:o.hideOnGameStart===true,windows,importedIsolation,advanced:launchAdvanced,name:settingsAccount().name,memory:o.memory,optimizeMemory:o.optimizeMemory===undefined?settings.optimizeMemory:o.optimizeMemory===true,memoryOptimizationVersion:1,fontSafety:o.fontSafety===undefined?settings.fontSafety!==false:o.fontSafety===true,java:o.java,javaMode:javaSelection.javaMode,javaMajor:javaSelection.javaMajor,microsoftClientId:resolveClientId(o.microsoftClientId),selected:o.selected,snapshots:!!o.snapshots,root:path.resolve(o.root),isolate:o.isolate!==false,source:o.source,concurrency:o.concurrency};await persist();
   const previous=win.getBounds(), area=screen.getDisplayMatching(previous).workArea;
   const bounds=launcherBounds(windows,area,previous);
   if(previous.width!==bounds.width||previous.height!==bounds.height) win.setBounds(bounds);

@@ -53,6 +53,20 @@ async function supplyLegacyLoggingConfig(descriptor, file, downloads) {
     await fs.rm(temp, {force:true});
   }
 }
+// minecraft2shell: a server resource pack can carry a font whose hinting
+// bytecode executes through the bundled FreeType (<= 2.14.3). Java Edition
+// 1.20.5 and newer load fonts through FreeType; 1.20.4 and older never call it.
+function fontSafetyApplies(version){
+  const id=String(version||'');
+  const release=/^1\.(\d{1,2})(?:\.(\d{1,2}))?$/.exec(id);
+  if(release){const minor=Number(release[1]),patch=Number(release[2]||0);return minor>20||(minor===20&&patch>=5);}
+  const snapshot=/^(\d{2})w(\d{2})([a-z])$/i.exec(id);
+  if(snapshot)return Number(snapshot[1])>=24;
+  const modern=/^(\d{2,})\.\d/.exec(id);
+  if(modern)return Number(modern[1])>=26;
+  return false;
+}
+async function hasFontFixMod(gameDir){try{const names=await fs.readdir(path.join(gameDir,'mods'));return names.some(name=>/m2sfix/i.test(name)&&/\.jar$/i.test(name));}catch{return false;}}
 class Game {
   constructor(options){this.options=options;this.log=options.onLog||(()=>{});this.downloads=new Downloads({root:options.sharedRoot||options.root,mode:options.source||'auto',concurrency:options.concurrency||16,signal:options.signal,onProgress:options.onProgress,onLog:this.log,fetcher:options.fetcher,sourceResolver:options.sourceResolver});}
   async manifest(){if(this.options.getManifest)return this.options.getManifest();try{const data=await this.downloads.json(MANIFEST);await writeJSON(path.join(this.options.root,'.starquill','version_manifest_v2.json'),data);return {versions:data.versions,cached:false};}catch(error){try{return {versions:(await readJSON(path.join(this.options.root,'.starquill','version_manifest_v2.json'))).versions,cached:true};}catch{throw error;}}}
@@ -162,6 +176,14 @@ class Game {
     if(options.blockModUpdates)tuning.push('-Dfml.disableVersionCheck=true');
     const usesUnsafe=(meta.libraries||[]).some(l=>/^org\.lwjgl:lwjgl:3\.4\.[01](?:$|[@:])/.test(l.name));
     if(!options.disableUnsafeAgent && major>=25 && usesUnsafe)tuning.push('-javaagent:'+path.join(toolsDir,'lwjgl-unsafe-agent-2.0.jar'));
+    // Resource-pack font guard: Windows only, and skipped when the mod version is already installed.
+    // TODO(minecraft2shell): remove this block, tools/m2sfix-agent-1.0.0.jar, the
+    // settings toggle and docs/FONT-SAFETY.md once Minecraft ships FreeType >= 2.15.0
+    // (the official fix); see the removal checklist in docs/FONT-SAFETY.md.
+    if(o.fontSafety!==false && process.platform==='win32' && fontSafetyApplies(o.version) && !(await hasFontFixMod(p.game))){
+      tuning.push('-javaagent:'+path.join(toolsDir,'m2sfix-agent-1.0.0.jar'));
+      this.log('已启用字体安全防护（minecraft2shell）：关闭资源包字体 hinting');
+    }
     // RFB and other custom system loaders must see the real classpath at VM startup.
     // A -jar wrapper overrides -cp before that loader can be instantiated.
     const customSystemLoader=[...jvm,...custom,...(o.extraJvmArgs||[])].some(v=>v.startsWith('-Djava.system.class.loader='));
@@ -205,4 +227,4 @@ class Game {
     } catch(error){await restore();throw error;}
   }
 }
-module.exports={Game,allowed,maven,libraryFiles,expand,splitLegacy,offlineUUID,inspectJava};
+module.exports={Game,allowed,maven,libraryFiles,expand,splitLegacy,offlineUUID,inspectJava,fontSafetyApplies};
