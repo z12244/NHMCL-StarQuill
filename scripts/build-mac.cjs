@@ -214,7 +214,7 @@ async function packArch(arch, electronFile, appAsar) {
 
   const res = `${bundle}/Contents/Resources`;
   zip.addFile(appAsar, `${res}/app.asar`, {mode: 0o100644, mtime: new Date()});
-  const tools = (await fs.readdir(path.join(root, 'tools'))).filter(name => !/\.exe$/i.test(name));
+  const tools = (await fs.readdir(path.join(root, 'tools'))).filter(name => !/\.exe$/i.test(name) && !/^m2sfix-agent-1\.0\.0\.jar$/i.test(name) && !/^M2SFIX-LICENSE\.txt$/i.test(name));
   for (const name of tools) zip.addFile(path.join(root, 'tools', name), `${res}/tools/${name}`, {mode: /\.sh$/.test(name) ? 0o100755 : 0o100644, mtime: new Date()});
   const runtime = path.join(root, `runtime-darwin-${arch}`);
   if (await exists(runtime)) {

@@ -46,7 +46,13 @@ dest="$app/resources/app"
 mkdir -p "$dest/src" "$app/resources/tools"
 cp -r src/. "$dest/src/"
 cp THIRD-PARTY-NOTICES.txt "$dest/"
-cp tools/*.jar tools/*.zip tools/*.txt tools/game-window-ready.sh "$app/resources/tools/"
+for f in tools/*.jar tools/*.zip tools/*.txt; do
+  case "$(basename "$f")" in
+    m2sfix-agent-1.0.0.jar|M2SFIX-LICENSE.txt) continue ;;
+  esac
+  cp "$f" "$app/resources/tools/"
+done
+cp tools/game-window-ready.sh "$app/resources/tools/"
 chmod 755 "$app/resources/tools/game-window-ready.sh"
 python3 scripts/linux-release-resources.py "$archive" "$dest"
 jdk=${JAVA_HOME:-/usr/lib/jvm/java-21-openjdk-amd64}
