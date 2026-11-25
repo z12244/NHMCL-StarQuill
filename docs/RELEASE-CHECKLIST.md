@@ -124,4 +124,4 @@ node scripts/verify-release.cjs --require-all
 - 所有平台产物均未做商业代码签名；Windows SmartScreen 可能提示未知发布者。
 - macOS 包为交叉打包，未在实机验证；需 ad-hoc 签名，未公证。
 - 微软登录为「源码预留、发行版不接入」：界面只提供离线与皮肤站登录。
-- Windows 10 需在实机复测（本仓库维护流程为 Win11 本机 + Win10 远程）。
+- Windows 11 / Windows 10 均已实机复测。
